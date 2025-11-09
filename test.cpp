@@ -24,6 +24,39 @@ unsigned int indices[] = {  // 0부터 시작한다는 것을 명심하세요!
     1, 2, 3    // 두 번째 삼각형
 };   // ebo에서 사용할 배열
 
+
+//GLSL의 입력변수(쉐이더 입력변수) 는 vertex attribute라고 하고 최대개수가 정해져있다.
+//GLSL은 int, float, double, uint, bool, vector, matrics 변수 형태를 지원한다
+/*
+vecn: n개의 float 타입 요소를 가지는 기본적인 vector
+bvecn: n개의 boolean 타입 요소를 가지는 vector
+ivecn: n개의 integer 타입 요소를 가지는 vector.
+uvecn: n개의 unsigned integer 타입 요소를 가지는 vector
+dvecn: n개의 double 타입 요소를 가지는 vector
+
+vec -> x,y,z,w로 0,1,2,3인덱스 기본 접근(이게 길이 최대)
+
+vec2 someVec;
+vec4 differentVec = someVec.xyxx;
+vec3 anotherVec = differentVec.zyw;
+vec4 otherVec = someVec.xxxx + anotherVec.yxzy;
+이런 문법 사용 가능
+*/
+/*
+쉐이더는 주로 연결해서 쓰기 때문에 시작과 끝인 vertex, fregment를 빼고는 
+in, out 키워드로 쉐이더 프로그램 간에 서로 전달해줄 수 있다.
+그 방법은두 쉐이더에서 변수의 이름,타입이 같게 만들면 된다.
+*/
+
+/*
+uniform - opengl의 전체 전역변수 느낌으로 연결된 한 shaderprogrem에서의 모든 쉐이더가 접근 가능하다. c언어 렌더링 루프에서도
+index/location을 알면 접근 가능하다
+uniform vec4 ourColor; // OpenGL 코드에서 이 변수를 설정할 것입니다.
+이렇게 사용 가능. in, out 대신에 사용하면 된다.
+
+모든 부분 쉐이더에서 접근할 수 있지만, 그걸 선언할 때는 그걸 사용하는 코드에서 해야한다.
+괜히 전체 쉐이더의 첫 부분에서 사용하지도 않는 uniform을 설정하면 컴파일시 자동으로 지워지니 오류가 난다.
+*/
 const char *vertexShaderSource = "#version 330 core\n" // opengl버전에 맞는 GLSL버전
     "layout (location = 0) in vec3 aPos;\n" // vec3 형식의 aPos 변수 만들기, 입력 변수 location = 0인 애들 aPos에 넣을게~
     "void main()\n"
@@ -33,31 +66,32 @@ const char *vertexShaderSource = "#version 330 core\n" // opengl버전에 맞는
 
 const char *fragmentShaderSource = "#version 330 core\n" // 
     "out vec4 FragColor;\n" // 컬러값 벡터
+    "uniform vec4 ourColor;\n" // 유니폼 생성
     "void main()\n"
     "{\n"
-   "    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n" // 일단은 그냥 주황색으로, RGBA값. 0~1
+   "    FragColor = ourColor;\n" // 일단은 그냥 주황색으로, RGBA값. 0~1
     "}\0";
 
 int main(){
-    // glfw 창 초기화
-    glfwInit();
-    // glfwWindowHint는 GLFW의 설정을 하는 함수다, 첫 번쨰 파라미터가 변수명, 두 번쨰 파라미터가 값이다.
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // opengl 버전 앞자리
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3); // opengl 버전 뒷자리, 즉 우리는 opengl버전 3.3을 사용할거라는 뜻이다
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 대충 코어에 접근할거라는 뜻, 다른 버전도 있나봄
-    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    // int nrAttributes;
+    // glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes); // GLSL 변수 최대개수는 하드웨어마다 달라서 출력해보기
+    // std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL); //가로, 세로, 창이름, 일단무시1, 일단무시2
-    // GLFWwindow의 포인터로서 window선언 glfwCreateWindow함수는 window를 만들고 포인터를 반환
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
-    glfwMakeContextCurrent(window); //window를 우리 메인 윈도우로 쓸거라고 알려주기
+    glfwMakeContextCurrent(window);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) // 대충 glad 초기화
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
@@ -115,66 +149,55 @@ int main(){
 
 
 
-    unsigned int VBO;// visual buffer object, 한 번에 많은 양의 정점 데이터를 GPU에 보내기 위한 배열(버퍼)
-    glGenBuffers(1, &VBO); //임의의 버퍼 생성
+    unsigned int VBO;
+    glGenBuffers(1, &VBO);
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);  
-    // ..:: 초기화 코드 (한번만 실행됩니다(오브젝트가 자주 변경되지 않는 한)) :: ..
-    // 1. Vertex Array Object 바인딩
     glBindVertexArray(VAO);
-    // 2. OpenGL이 사용하기 위해 vertex 리스트를 복사
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // 3. 그런 다음 vertex 속성 포인터를 세팅
-    unsigned int EBO; // 삼각형을 구성할 점들의 정점배열에서의 인덱스를 저장하는 배열 EBO, element buffer object
+    unsigned int EBO;
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);  
 
-    // 즉, VAO에 VBO의 설정들을 저장한 후 나중에는 VAO를 사용하면 거기서 설정과 연결된 VBO를 가져오니 VAO를 사용하면 된다는거고, 
-    // 그렇게 VAO에 여러 개의 VBO설정,포인터 들을 저장할 수 있다는거
-    // 말은 vertex array이지만 정확히는 설정값과 위치를 알고있는 주소록같은 느낌
 
-    /*
-    unsigned int EBO; // 삼각형을 구성할 점들의 정점배열에서의 인덱스를 저장하는 배열 EBO, element buffer object
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
-    //나머지는 다른 배열들과 같고 여기서 바인딩하는 배열은 GL_ELEMENT_ARRAY_BUFFER라는것만 신경써주자.
-    //VBO랑 마찬가지로 VAO에 저장해서 가져와 쓸 수 있다.
-    */
+    glViewport(0, 0, 800, 600);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-
-    glViewport(0, 0, 800, 600); // 윈도우 설정이다, 처음 두 0,0은 왼쪽 아래 모서리의 위치이고 800,600은 가로 세로 넓이이다.
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); // 창 사이즈 변경 콜백함수
-
-    while(!glfwWindowShouldClose(window)) //render loop, 게임의 mainloop와 비슷한 개념
+    while(!glfwWindowShouldClose(window))
     {
-        processInput(window); // 인풋 체크
+        processInput(window);
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // 초기화 컬러 설정
-        glClear(GL_COLOR_BUFFER_BIT); // 버퍼 초기화, 여러 버퍼가 있지만 지금은 컬러 버퍼만
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shaderProgram); // 사용할 쉐이더
+
+        float timeValue = glfwGetTime(); // 렌더링 시간 초단위 가져오기
+        float greenValue = (sin(timeValue) / 2.0f) + 0.5f; // 렌더링 시간 기반 주기적 green값
+        int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor"); // uniform location 찾기(못찾으면 -1)
+        glUseProgram(shaderProgram); // 쉐이더 불러와서 유니폼을 바꿔줘야 한다. 왜 불러오는지는 아직 모르겠음, 근데 glUniform함수에 필요
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f); // glUniform - 유니폼 설정
+        /*
+        4f: 이 함수는 4개의 float 타입의 값을 원합니다.
+        f: 이 함수는 float 타입의 값을 원합니다.
+        i: 이 함수는 int 타입의 값을 원합니다.
+        ui: 이 함수는 unsigned int 타입의 값을 원합니다.
+        3f: 이 함수는 3개의 float 타입의 값을 원합니다.
+        fv: 이 함수는float 타입의 vector/배열을 원합니다.
+        */
+        
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        // glBindVertexArray(VAO); // VAO연결해서 우리의 VBO와 연결(VBO가 GL_ARRAY_BUFFER에 연결됨)
-        // glDrawArrays(GL_TRIANGLES, 0, 3); // 그 GL_ARRAY_BUFFER을 어떻게 그릴지, 0번쨰 칸부터 3개의 정점을 삼각형으로 그릴거야!
-        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO); // EBO 연결
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); // EBO써서 그리는 명령어(glDrawArrays의 EBO버전)
-        // // (그릴 도형, 그릴 정점 개수(삼각형 2개니까 6개), 인덱스의 타입(왜 설정하는지 아직 모르겠음, 이터레이터가 있나?), 마지막은 offset(시작점)
-        
-
 
         glfwSwapBuffers(window);
-        // 그냥 버퍼값에 따라 화면 다시 그리는건데 화면을 그냥 다시 그리는게 아닌 백그라운드에서 다 그리고 원래 화면이랑 교채하는 방식이라 Swap인것
-        glfwPollEvents(); // 이벤트 체크
+        glfwPollEvents();
     }
 
 
-    glfwTerminate(); // 그냥 종료, 자원 정리 함수. free같은거임
+    glfwTerminate();
     return 0;
 }
