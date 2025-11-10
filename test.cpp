@@ -1,7 +1,7 @@
 #include <glad/glad.h> // 가장 먼저 include 필요
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include<shader_s.h>
+#include"shader_s.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
 {// 창 크기가 바뀔 때마다 viewport값 바꾸기 위해 호출되는 콜백함수
@@ -99,55 +99,7 @@ int main(){
         0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // 위 
     };    
 
-
-    // vertexShader
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER); // 쉐이더 생성
-
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL); // 소스코드 설정
-    glCompileShader(vertexShader); // 컴파일(쉐이더도 코드니까)
-
-    int  success; // 컴파일 에러로그를 위한 부분
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-    // vertexShader(정점 쉐이더) 끝
-
-    // fragmentShader
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if(!success) {
-        glGetProgramInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "암튼 fragment 쉐이더 에러\n" << infoLog << std::endl;
-    }
-    // fragmentShader (픽셀 색상 쉐이더) 끝
-
-    //shader progrem -> 쉐이더끼리 연결, 최종 결과 쉐이더
-    unsigned int shaderProgram;
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-        //쉐이더 프로그램 컴파일 로그
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if(!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "암튼 쉐이더 프로그램 에러\n" << infoLog << std::endl;
-    }
-    // glUseProgram(shaderProgram); // 이제 쉐이더 이거 쓸게요~
-        //shader progrem에 연결했으니 이제 필요없음
-    glDeleteShader(vertexShader); 
-    glDeleteShader(fragmentShader);  
-    //shader progrem 끝
-
-
+    Shader ourShader("shader.vs", "shader.fs"); // vs,fs가 무슨 타입인지는 모르겠으나 이렇게들 많이 쓴다고 한다.
 
 
     unsigned int VBO;
@@ -186,11 +138,7 @@ int main(){
     {
         processInput(window);
 
-        float timeValue = glfwGetTime(); // 렌더링 시간 초단위 가져오기
-        float greenValue = (sin(timeValue) / 2.0f) + 0.5f; // 렌더링 시간 기반 주기적 green값
-        int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor"); // uniform location 찾기(못찾으면 -1)
-        glUseProgram(shaderProgram); // 쉐이더 불러와서 유니폼을 바꿔줘야 한다. 왜 불러오는지는 아직 모르겠음, 근데 glUniform함수에 필요
-        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f); // glUniform - 유니폼 설정
+        ourShader.use();
         /*
         4f: 이 함수는 4개의 float 타입의 값을 원합니다.
         f: 이 함수는 float 타입의 값을 원합니다.
