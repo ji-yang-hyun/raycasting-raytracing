@@ -171,7 +171,7 @@ int main(){
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(600, 600, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(600, 600, "raycasting2D", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -180,33 +180,68 @@ int main(){
     }
     glfwMakeContextCurrent(window);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
+    GLFWwindow* window2 = glfwCreateWindow(600, 600, "raycasting3D", NULL, NULL);
+    if (window2 == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window2);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))  
+    // 어디서 해도 상관없는데 glfwMakeContextCurrent후에 해야함. 그리고 opengl함수 쓰기 전에.
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
-    }    
+    }
 
-    glEnable(GL_DEPTH_TEST);  // depth test 키기
-    glViewport(0, 0, 600, 600);
+
+    //공통 설정
+    glfwMakeContextCurrent(window);
+    glViewport(0,0,600,600);
+    glEnable(GL_DEPTH_TEST);
+    Shader ourShader("shader.vs", "shader.fs");
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    Shader ourShader("shader.vs", "shader.fs");
+    glfwMakeContextCurrent(window2);
+    glViewport(0,0,600,600);
+    glEnable(GL_DEPTH_TEST);  // depth test 키기
+    glfwSetFramebufferSizeCallback(window2, framebuffer_size_callback);
+    Shader ourShader2("shader.vs", "shader.fs");
+    
 
 
+
+//window를 위한 VAO, VBO, EBO 준비
+    glfwMakeContextCurrent(window);
     // wall 단계
+    unsigned int EBOW;
+    glGenBuffers(1, &EBOW);
     unsigned int VBOW;
     glGenBuffers(1, &VBOW);
     unsigned int VAOW;
-    glGenVertexArrays(1, &VAOW);  
+    glGenVertexArrays(1, &VAOW);  //VAO는 바인딩된 이후의 vertex속성의 호출을 저장한다
     glBindVertexArray(VAOW);
     glBindBuffer(GL_ARRAY_BUFFER, VBOW);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    unsigned int EBOW;
-    glGenBuffers(1, &EBOW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);  
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOW);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);  
+
+    /*
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);는 VBO의 바인딩 후에!
+    왜냐면, glVertexAttribPointer은 지금 바인딩 된 buffer(GL_ARRAY_BUFFER)를 어떻게 가르켜야 하는지를 보는 아이다.
+    먼저 가르키고 거기에 바인딩이 되는건 안되고 바인딩은 된 후에 포인터를 설정하는 것 같다. 자세히는 모르지만 나름 그럴듯한 순서.
+
+    VAO : VBO바인딩 하고 VBO는 어떻게 생겨먹었고 어디서 값을 가져오면 되는지. + EBO데이터
+    "결국 어떤거의 어디서 값을 가져오자"를 저장한다. 그 값 자체는 저장하지 않는다. (VBO값 바꾸몀ㄴ 적용됨)
+    VAO는 glVertexAttribPointer뿐만 아니라 뭘(VBOW) 바인딩해야하는지도 기억한다.
+    그러니까 말 그대로 그 이후의 흐름 그 자체를 기억한다.
+    */
+
+   
 
 
     // ray 단계
@@ -224,35 +259,28 @@ int main(){
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);  
 
-/*
-    근데 여기서 알 수 있는게, vao만 바꾸고 vbo를 같이 썼더니 처음 vaow도 바뀌는걸 볼 수 있었다.
-    따라서 vao는 vbo로의 연결과 포인터를 저장하는거지 그 vbo를 저장하는게 아니기 때문에 원본 vbo가 바뀌면 안된다는 거
-
-
-    예를 들어 이래버리면 VAOW 쓰는 애들도 바뀌어버린다
-    glBindBuffer(GL_ARRAY_BUFFER, VBOW);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertics), rayVertics, GL_STATIC_DRAW);
-*/
-
-    while(!glfwWindowShouldClose(window))
+    while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window2))
     {
         processInput(window);
         renderTime = (float)glfwGetTime();
+
+        glfwMakeContextCurrent(window);
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glClear(GL_DEPTH_BUFFER_BIT); // zbuffer(deptBuffer)사용중이므로 매 루프마다 비워줘야 한다.
-
-        
-        // glBindVertexArray(VAOR);
-        // glm::mat4 model = glm::mat4(1.0f);
-        // ourShader.use();
-        // ourShader.setMat4("model", model);
-        // ourShader.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glClear(GL_DEPTH_BUFFER_BIT);
         drawWall(ourShader, VAOW);
         ray(ourShader, VAOR);
 
         glfwSwapBuffers(window);
+
+        glfwMakeContextCurrent(window2);
+        glClearColor(1.0f,1.0f,1.0f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        drawWall(ourShader2, VAOW);
+        ray(ourShader2, VAOR);
+
+        glfwSwapBuffers(window2);
         glfwPollEvents();
     }
 
@@ -262,21 +290,3 @@ int main(){
     setPosition(2,2);
     return 0;
 }
-
-
-/*
-파일을 include한다는 것은 그걸 앞쪽에 그대로 복사한다는것과 같다
-그래서 같은걸 여러 파일에서 include한다면 여기저기 파일에 복사돼서 여기저기서 같은 변수가 생성되는것과 같은 효과가 나온다.
-그래서 우리는 
-#ifndef로 이게 복사가 된 적이 있는지 없는지, 있다면 그냥 실행하지 않고 넘어갈 수 있게 해야한다
-
-컴파일 후의 마지막 목적파일 .o파일.
-
-근데 이게 h파일만 가능한 것 같다. 왜냐면 이게 h파일은 목적파일 o파일이 나오지 않는것에 비해 cpp파일은 그 자체로 목적파일이 나와버리니
-#ifndef를 사용해도 최소 2개의 목적파일에서 생성하는것처럼 되어버리는 듯.
-그동안 그냥 main굴릴때는 몰랐는데 컴파일, 빌드 하려면 그런 것 같다
-*/
-
-/*
-depth_testing상태에서 z값이 같은 경우에는 먼저 그린걸 가장 위에 놓는다.
-*/
