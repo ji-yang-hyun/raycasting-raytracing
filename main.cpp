@@ -16,7 +16,25 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     float min = (width < height) ? width : height;
     glViewport(0, 0, min, min);
-}  
+}
+
+pair<float, float> setPosition(float newpx,float newpy){
+    float x = newpx;
+    float y = newpy;
+    float xDistance, yDistance;
+    for(int i=0;i<walls.size();i++){
+        xDistance = newpx - walls[i].second;
+        yDistance = newpy - walls[i].first;
+        
+        if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
+            printf("%f \n", xDistance);
+            printf("%f %f\n", newpx, walls[i].second);
+            x = px;
+            y = py;
+        }
+    }
+    return make_pair(x,y);
+}
 
 void processInput(GLFWwindow *window)
 {
@@ -34,8 +52,29 @@ void processInput(GLFWwindow *window)
     if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
         py -= playerSpeed * ((float)glfwGetTime() - renderTime);
     }
+
+    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
+        pair<float, float> position = setPosition(
+            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*pt), 
+            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*pt));
+        
+        px = position.first;
+        py = position.second;
+    }
+    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
+        pair<float, float> position = setPosition(
+            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*pt), 
+            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*pt));
+        
+        px = position.first;
+        py = position.second;
+    }
+
     if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
         pt -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        if(pt - povHorizontal/2 < 0){
+            pt += 360;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
         pt += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
@@ -219,6 +258,8 @@ int main(){
 
 
     glfwTerminate();
+
+    setPosition(2,2);
     return 0;
 }
 

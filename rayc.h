@@ -15,12 +15,12 @@ using namespace std;
 #define pixelX povHorizontal / dt
 #define pixelY povVertical / dt
 #define PI 3.1415926
-#define playerSpeed 1
+#define playerSpeed 2
 #define playerThetaSpeed 45
 
 int screen[pixelY][pixelX] = {};
-float px = 0;
-float py = 0;
+float px = 2;
+float py = 2;
 float pt = 90; // player theta
 
 pair<pair<float, float >, float> wallDistance(float theta){
@@ -38,18 +38,10 @@ pair<pair<float, float >, float> wallDistance(float theta){
         int kx, ky;
 
         //좌표관계에 따라서 반대쪽 벽은 볼 필요조차 없다
-        if(x - px >= 0){
-            kx = -1;
-        }
-        else{
-            kx = 1;
-        }
-        if(y - py >= 0){
-            ky = -1;
-        }
-        else{
-            ky = 1;
-        }
+        if(x - px >= 0) kx = -1;
+        else kx = 1;
+        if(y - py >= 0) ky = -1;
+        else ky = 1;
 
         float iy = tan(PI/180 * thetaF) * (x + 0.5*kx - px) + py;
         float ix = (y + 0.5*ky - py) / tan(PI/180 * thetaF) + px;
@@ -74,57 +66,9 @@ pair<pair<float, float >, float> wallDistance(float theta){
                 }
             }
         }
-        
-        // if((y - y1) <= 0.5 && (y - y1) >= -0.5){
-        //     distance = sqrt(pow((x + 0.5 - px),2) + pow((y1 - py),2));
-        //     if(minDistance == -1 || minDistance > distance){
-        //         ix = x + 0.5;
-        //         iy = y1;
-        //         minDistance = distance;
-        //     }
-        // }
-        // if((y - y2) <= 0.5 && (y - y2) >= -0.5){
-        //     distance = sqrt(pow((x - 0.5 - px),2) + pow((y2 - py),2));
-        //     if(minDistance == -1 || minDistance > distance){
-        //         ix = x - 0.5;
-        //         iy = y2;
-        //         minDistance = distance;
-        //     }
-        // }
-        // if((x - x1) <= 0.5 && (x - x1) >= -0.5){
-        //     distance = sqrt(pow((y - 0.5 - py),2) + pow((x1 - px),2));
-        //     if(minDistance == -1 || minDistance > distance){
-        //         iy = y - 0.5;
-        //         ix = x1;
-        //         minDistance = distance;
-        //     }
-        // }
-        // if((x - x2) <= 0.5 && (x - x2) >= -0.5){
-        //     distance = sqrt(pow((y + 0.5 - py),2) + pow((x1 - px),2));
-        //     if(minDistance == -1 || minDistance > distance){
-        //         iy = y + 0.5;
-        //         ix = x2;
-        //         minDistance = distance;
-        //     }
-        // }
-    }
-
-    //가장 가까운 끝값과의 점
-    if(minDistance == -1){
-
     }
 
     return make_pair(make_pair(IX,IY) , minDistance);
 }
 
 #endif
-
-// // int main(){
-// //     wallCoordinate();
-// //     for(int i=0;i<pixelX;i++){
-// //         float theta = 90 - povHorizontal/2 + dt/2 + i*dt;
-// //         float distance = wallDistance(theta);
-// //         printf("각도 : %f, 거리 : %f\n", theta, distance);
-// //     }
-// //     return 0;
-// // }
