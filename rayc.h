@@ -9,7 +9,7 @@
 
 using namespace std;
 
-#define povHorizontal 80
+#define povHorizontal 60
 #define povVertical 120
 #define dt 1 //delta theta
 #define pixelX povHorizontal / dt
@@ -17,8 +17,9 @@ using namespace std;
 #define PI 3.1415926
 #define playerSpeed 2
 #define playerThetaSpeed 45
+#define screenSizeX 1000
+#define screenSizeY 1000
 
-int screen[pixelY][pixelX] = {};
 float px = 2;
 float py = 2;
 float pt = 90; // player theta

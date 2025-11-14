@@ -95,6 +95,13 @@ float rayVertics[] = {
     -0.01f, 0.0f, 0.1f // 아래, 왼쪽
 };
 
+float wallEyeVertics[] = {
+    2.0f/pixelX, 1.0f, 0.0f, // 위, 오른쪽
+    0.0f, 1.0f, 0.0f, // 위, 왼쪽
+    2.0f/pixelX, 0.0f, 0.0f, // 아래, 오른쪽
+    0.0f, 0.0f, 0.0f // 아래, 왼쪽
+};
+
 unsigned int indices[] = {
     0,1,2,
     1,2,3
@@ -103,7 +110,8 @@ unsigned int indices[] = {
 
 
 
-void drawWall(Shader ourShader, unsigned int VAOW){
+void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window){
+    glfwMakeContextCurrent(window);
     glBindVertexArray(VAOW);
     for(unsigned int i = 0; i < walls.size(); i++)
         {
@@ -122,7 +130,8 @@ void drawWall(Shader ourShader, unsigned int VAOW){
     }
 }
 
-void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy){
+void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* window){
+    glfwMakeContextCurrent(window);
     glBindVertexArray(VAOR);
     rayVertics[0] = 2*(ix/mapSize)/1.0f - 1.0f;
     rayVertics[1] = 2*(iy/mapSize)/1.0f - 1.0f;
@@ -145,7 +154,46 @@ void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy){
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-void ray(Shader ourShader, unsigned int VAOR){
+void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNum, GLFWwindow* window2){
+    glfwMakeContextCurrent(window2);
+    glBindVertexArray(VAOE);
+
+    float heightEyeOver = (wallHeight - playerHeight) / (2 * distance * tan(PI/180*povVertical/2)); 
+    float heightEyeBelow = (wallHeight - (wallHeight - playerHeight)) / (2 * distance * tan(PI/180*povVertical/2)); 
+    //화면에 보이는 높이, 기준단위는 우리 맵과 같은 좌표계, 눈의 위, 아래로 나눈다.
+    //내 시야에서 차지하는 비율이기 때문에 전체 화면 크기인 2(1~-1)을 감안해서 단순히 그냥 사용해주면 된다.
+
+    if(heightEyeOver >= 0.5){ // 내 눈 위의 시야를 꽉 채운다면
+        heightEyeOver = 0.5;
+    }
+    if(heightEyeBelow >= 0.5){ // 내 눈 아래의 시야를 꽉 채운다면
+        heightEyeBelow = 0.5;
+    }
+
+    glm::mat4 modelO;
+    modelO = glm::scale(modelO, glm::vec3(1,heightEyeOver*2,1));
+    modelO = glm::translate(
+        modelO, glm::vec3(-((colNum*2.0f)/pixelX - 1), 0,0)
+    );
+    ourShader2.use();
+    ourShader2.setMat4("model", modelO);
+    ourShader2.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    glm::mat4 modelB;
+    modelB = glm::scale(modelB, glm::vec3(1,-heightEyeBelow*2,1));
+    modelB = glm::translate(
+        modelB, glm::vec3(-((colNum*2.0f)/pixelX - 1), 0,0)
+    );
+    ourShader2.use();
+    ourShader2.setMat4("model", modelB);
+    ourShader2.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+void ray(Shader ourShader, Shader ourShader2, 
+    unsigned int VAOR, unsigned int VAOE, 
+    GLFWwindow* window, GLFWwindow* window2){
     for(int i=0;i<pixelX;i++){
         float theta = fmod(pt - povHorizontal/2 + dt/2 + i*dt, 360);
         pair<pair<float, float>, float > P;
@@ -156,7 +204,8 @@ void ray(Shader ourShader, unsigned int VAOR){
         // printf("각도 : %f, 거리 : %f, 교점 %f, %f \n", theta, distance, ix, iy);
         
         if(distance != -1){
-            drawRay(ourShader, VAOR, ix, iy);
+            drawRay(ourShader, VAOR, ix, iy, window);
+            drawWallEye(ourShader2, VAOE, distance, i, window2);
         }
     }
 }
@@ -223,41 +272,48 @@ int main(){
     unsigned int VAOW;
     glGenVertexArrays(1, &VAOW);  //VAO는 바인딩된 이후의 vertex속성의 호출을 저장한다
     glBindVertexArray(VAOW);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBOW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);  
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOW);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    /*
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);는 VBO의 바인딩 후에!
-    왜냐면, glVertexAttribPointer은 지금 바인딩 된 buffer(GL_ARRAY_BUFFER)를 어떻게 가르켜야 하는지를 보는 아이다.
-    먼저 가르키고 거기에 바인딩이 되는건 안되고 바인딩은 된 후에 포인터를 설정하는 것 같다. 자세히는 모르지만 나름 그럴듯한 순서.
-
-    VAO : VBO바인딩 하고 VBO는 어떻게 생겨먹었고 어디서 값을 가져오면 되는지. + EBO데이터
-    "결국 어떤거의 어디서 값을 가져오자"를 저장한다. 그 값 자체는 저장하지 않는다. (VBO값 바꾸몀ㄴ 적용됨)
-    VAO는 glVertexAttribPointer뿐만 아니라 뭘(VBOW) 바인딩해야하는지도 기억한다.
-    그러니까 말 그대로 그 이후의 흐름 그 자체를 기억한다.
-    */
-
-   
-
+    glEnableVertexAttribArray(0); 
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
 
     // ray 단계
+    unsigned int EBOR;
+    glGenBuffers(1, &EBOR);
     unsigned int VBOR;
     glGenBuffers(1, &VBOR);
     unsigned int VAOR;
     glGenVertexArrays(1, &VAOR);  
     glBindVertexArray(VAOR);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBOR);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertics), rayVertics, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    unsigned int EBOR;
-    glGenBuffers(1, &EBOR);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOR);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);  
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertics), rayVertics, GL_STATIC_DRAW);
+
+
+// window2를 위한 VAO준비, 벽 그릴거다. eye로 보는걸 그리는거니 E.
+    glfwMakeContextCurrent(window2);
+    unsigned int EBOE;
+    glGenBuffers(1, &EBOE);
+    unsigned int VBOE;
+    glGenBuffers(1, &VBOE);
+    unsigned int VAOE;
+    glGenVertexArrays(1, &VAOE);  
+    glBindVertexArray(VAOE);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBOE);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOE);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);  
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wallEyeVertics), wallEyeVertics, GL_STATIC_DRAW);
+
 
     while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window2))
     {
@@ -268,18 +324,22 @@ int main(){
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
-        drawWall(ourShader, VAOW);
-        ray(ourShader, VAOR);
-
-        glfwSwapBuffers(window);
-
         glfwMakeContextCurrent(window2);
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
-        drawWall(ourShader2, VAOW);
-        ray(ourShader2, VAOR);
 
+        glfwMakeContextCurrent(window);
+        drawWall(ourShader, VAOW, window);
+        ray(ourShader, ourShader2, VAOR, VAOE, window, window2);
+
+        glfwMakeContextCurrent(window2);
+        drawWall(ourShader2, VAOW, window);
+        ray(ourShader2, ourShader2, VAOR, VAOE, window, window2);
+
+
+
+        glfwSwapBuffers(window);
         glfwSwapBuffers(window2);
         glfwPollEvents();
     }
@@ -290,3 +350,26 @@ int main(){
     setPosition(2,2);
     return 0;
 }
+
+
+/*
+두 윈도우가 메인 윈도우일때(glfwMakeContextCurrent)
+모든 명령어는 해당 윈도우를 타겟으로 하고 그 사이에 지정되는 변수들도 마찬가지이다.(opengl변수들, 설정들)
+
+따라서 VAO, VBO, EBO, Shader을 포함한것들을 각각 설정해줘야 한다
+
+만약 그런거 없이 그냥 쓰면 그 자리가 비어있기 때문에 안된다.
+*/
+
+/*
+현상 : 똑같이 다른 설정 없이 그냥 VAOW(window)를 window2에 욱여넣었는데, 벽까지 다 ray가 돼버렸다
+내 가설에 의하면 ray도 벽이랑 같이 안 나와야 하는데??
+답은 drawray에서 buffer data를 하기 때문이였다.
+VAOR를 바인드를 하는데 사실 window2입장에서 이게 뭐지 싶을거다.(아마도 비어있을 것 같은데)
+그리고 VBOR에 데이터를 새로 가져오는데 거기서 이제야 VAOR가 정의된다.
+이제 그래서 벽을 그릴 때도 그 VAOR를 가져와서 사용하기 때문에 ray, 그것도 방향과 길이가 있는. 이 된다.
+
+그리고 이로써 알 수 있는건 새 VAO를 받았는데 그게 뭔지 모르겠으면 기존에 바인딩돼있던 VAO랑 짬뽕을 시킨다는거다.
+그래서 VAOE에서 포인터를, VAOR정의하면서 정점들을, 이렇게 계속 짬뽕시켜 나가는거다.
+그래서 애초에 맨 처음에 VAOE에서 포인터 설정을 안하면 동작을 안한다. 짬뽕할게 없기 때문. 
+*/ 

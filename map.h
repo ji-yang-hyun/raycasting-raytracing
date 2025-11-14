@@ -6,6 +6,8 @@
 using namespace std;
 
 #define mapSize 10
+#define wallHeight 2
+#define playerHeight 1.6
 
 int map[mapSize][mapSize] = {
     {1,1,1,1,1,1,1,1,1,1}, 
