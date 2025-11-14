@@ -96,11 +96,13 @@ float rayVertics[] = {
 };
 
 float wallEyeVertics[] = {
-    2.0f/pixelX, 1.0f, 0.0f, // 위, 오른쪽
-    0.0f, 1.0f, 0.0f, // 위, 왼쪽
-    2.0f/pixelX, 0.0f, 0.0f, // 아래, 오른쪽
-    0.0f, 0.0f, 0.0f // 아래, 왼쪽
+    0.0f, 1.0f, 0.0f, // 위, 오른쪽
+    -2.0f/(pixelX), 1.0f, 0.0f, // 위, 왼쪽
+    0.0f, 0.0f, 0.0f, // 아래, 오른쪽
+    -2.0f/(pixelX), 0.0f, 0.0f // 아래, 왼쪽
 };
+
+// 여기서 2.0f/pixelX를 썼는데, 이게 뭔가 계산 체계가 꼬인 것 같다. 그냥 나누면 안되고 괄호로 묶으니 괜찮아짐
 
 unsigned int indices[] = {
     0,1,2,
@@ -173,7 +175,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     glm::mat4 modelO;
     modelO = glm::scale(modelO, glm::vec3(1,heightEyeOver*2,1));
     modelO = glm::translate(
-        modelO, glm::vec3(-((colNum*2.0f)/pixelX - 1), 0,0)
+        modelO, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
     );
     ourShader2.use();
     ourShader2.setMat4("model", modelO);
@@ -183,7 +185,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     glm::mat4 modelB;
     modelB = glm::scale(modelB, glm::vec3(1,-heightEyeBelow*2,1));
     modelB = glm::translate(
-        modelB, glm::vec3(-((colNum*2.0f)/pixelX - 1), 0,0)
+        modelB, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
     );
     ourShader2.use();
     ourShader2.setMat4("model", modelB);
@@ -329,15 +331,8 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        glfwMakeContextCurrent(window);
         drawWall(ourShader, VAOW, window);
         ray(ourShader, ourShader2, VAOR, VAOE, window, window2);
-
-        glfwMakeContextCurrent(window2);
-        drawWall(ourShader2, VAOW, window);
-        ray(ourShader2, ourShader2, VAOR, VAOE, window, window2);
-
-
 
         glfwSwapBuffers(window);
         glfwSwapBuffers(window2);

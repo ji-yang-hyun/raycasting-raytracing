@@ -11,7 +11,7 @@ using namespace std;
 
 #define povHorizontal 60
 #define povVertical 120
-#define dt 1 //delta theta
+#define dt 0.5 //delta theta
 #define pixelX povHorizontal / dt
 #define pixelY povVertical / dt
 #define PI 3.1415926
