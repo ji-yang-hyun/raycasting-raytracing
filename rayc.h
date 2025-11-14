@@ -19,6 +19,7 @@ using namespace std;
 #define playerThetaSpeed 45
 #define screenSizeX 1000
 #define screenSizeY 1000
+#define maxSightRange 15
 
 float px = 2;
 float py = 2;

@@ -27,8 +27,8 @@ pair<float, float> setPosition(float newpx,float newpy){
         yDistance = newpy - walls[i].first;
         
         if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
-            printf("%f \n", xDistance);
-            printf("%f %f\n", newpx, walls[i].second);
+            // printf("%f \n", xDistance);
+            // printf("%f %f\n", newpx, walls[i].second);
             x = px;
             y = py;
         }
@@ -102,8 +102,6 @@ float wallEyeVertics[] = {
     -2.0f/(pixelX), 0.0f, 0.0f // 아래, 왼쪽
 };
 
-// 여기서 2.0f/pixelX를 썼는데, 이게 뭔가 계산 체계가 꼬인 것 같다. 그냥 나누면 안되고 괄호로 묶으니 괜찮아짐
-
 unsigned int indices[] = {
     0,1,2,
     1,2,3
@@ -164,6 +162,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     float heightEyeBelow = (wallHeight - (wallHeight - playerHeight)) / (2 * distance * tan(PI/180*povVertical/2)); 
     //화면에 보이는 높이, 기준단위는 우리 맵과 같은 좌표계, 눈의 위, 아래로 나눈다.
     //내 시야에서 차지하는 비율이기 때문에 전체 화면 크기인 2(1~-1)을 감안해서 단순히 그냥 사용해주면 된다.
+    float color = distance / (maxSightRange);
 
     if(heightEyeOver >= 0.5){ // 내 눈 위의 시야를 꽉 채운다면
         heightEyeOver = 0.5;
@@ -179,7 +178,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     );
     ourShader2.use();
     ourShader2.setMat4("model", modelO);
-    ourShader2.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+    ourShader2.setVec4("color", glm::vec4(color,color,color,1.0f));
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     glm::mat4 modelB;
@@ -189,7 +188,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     );
     ourShader2.use();
     ourShader2.setMat4("model", modelB);
-    ourShader2.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+    ourShader2.setVec4("color", glm::vec4(color,color,color,1.0f));
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
