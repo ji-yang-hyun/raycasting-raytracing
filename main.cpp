@@ -5,19 +5,41 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <math.h>
 #include"map.h"
 #include"rayc.h"
+
+float renderTime;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
 {
-    glViewport(0, 0, width, height);
+    float min = (width < height) ? width : height;
+    glViewport(0, 0, min, min);
 }  
 
 void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+        px += playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+        px -= playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
+        py += playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
+        py -= playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
+        pt -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
+        pt += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+    }
 }
 
 float wallVertics[] = {
@@ -38,6 +60,8 @@ unsigned int indices[] = {
     0,1,2,
     1,2,3
 };
+
+
 
 
 void drawWall(Shader ourShader, unsigned int VAOW){
@@ -84,7 +108,7 @@ void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy){
 
 void ray(Shader ourShader, unsigned int VAOR){
     for(int i=0;i<pixelX;i++){
-        float theta = 90 - povHorizontal/2 + dt/2 + i*dt;
+        float theta = fmod(pt - povHorizontal/2 + dt/2 + i*dt, 360);
         pair<pair<float, float>, float > P;
         P = wallDistance(theta);
         float distance = P.second;
@@ -174,6 +198,7 @@ int main(){
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
+        renderTime = (float)glfwGetTime();
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT); // zbuffer(deptBuffer)사용중이므로 매 루프마다 비워줘야 한다.
