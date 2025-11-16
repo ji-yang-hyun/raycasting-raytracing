@@ -27,8 +27,6 @@ pair<float, float> setPosition(float newpx,float newpy){
         yDistance = newpy - walls[i].first;
         
         if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
-            // printf("%f \n", xDistance);
-            // printf("%f %f\n", newpx, walls[i].second);
             x = px;
             y = py;
         }
@@ -110,8 +108,8 @@ unsigned int indices[] = {
 
 
 
-void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window){
-    glfwMakeContextCurrent(window);
+void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window1){
+    glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOW);
     for(unsigned int i = 0; i < walls.size(); i++)
         {
@@ -130,8 +128,8 @@ void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window){
     }
 }
 
-void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* window){
-    glfwMakeContextCurrent(window);
+void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* window1){
+    glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOR);
     rayVertics[0] = 2*(ix/mapSize)/1.0f - 1.0f;
     rayVertics[1] = 2*(iy/mapSize)/1.0f - 1.0f;
@@ -154,8 +152,8 @@ void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNum, GLFWwindow* window2){
-    glfwMakeContextCurrent(window2);
+void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNum, GLFWwindow* window){
+    glfwMakeContextCurrent(window);
     glBindVertexArray(VAOE);
 
     float heightEyeOver = (wallHeight - playerHeight) / (2 * distance * tan(PI/180*povVertical/2)); 
@@ -194,7 +192,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
 
 void ray(Shader ourShader, Shader ourShader2, 
     unsigned int VAOR, unsigned int VAOE, 
-    GLFWwindow* window, GLFWwindow* window2){
+    GLFWwindow* window, GLFWwindow* window1){
     for(int i=0;i<pixelX;i++){
         float theta = fmod(pt - povHorizontal/2 + dt/2 + i*dt, 360);
         pair<pair<float, float>, float > P;
@@ -205,8 +203,8 @@ void ray(Shader ourShader, Shader ourShader2,
         // printf("각도 : %f, 거리 : %f, 교점 %f, %f \n", theta, distance, ix, iy);
         
         if(distance != -1){
-            drawRay(ourShader, VAOR, ix, iy, window);
-            drawWallEye(ourShader2, VAOE, distance, i, window2);
+            drawRay(ourShader, VAOR, ix, iy, window1);
+            drawWallEye(ourShader2, VAOE, distance, i, window);
         }
     }
 }
@@ -221,7 +219,16 @@ int main(){
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(600, 600, "raycasting2D", NULL, NULL);
+    GLFWwindow* window1 = glfwCreateWindow(600, 600, "raycasting2D", NULL, NULL);
+    if (window1 == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window1);
+
+    GLFWwindow* window = glfwCreateWindow(600, 600, "raycasting3D", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -229,15 +236,6 @@ int main(){
         return -1;
     }
     glfwMakeContextCurrent(window);
-
-    GLFWwindow* window2 = glfwCreateWindow(600, 600, "raycasting3D", NULL, NULL);
-    if (window2 == NULL)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window2);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))  
     // 어디서 해도 상관없는데 glfwMakeContextCurrent후에 해야함. 그리고 opengl함수 쓰기 전에.
@@ -254,17 +252,17 @@ int main(){
     Shader ourShader("shader.vs", "shader.fs");
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    glfwMakeContextCurrent(window2);
+    glfwMakeContextCurrent(window1);
     glViewport(0,0,600,600);
     glEnable(GL_DEPTH_TEST);  // depth test 키기
-    glfwSetFramebufferSizeCallback(window2, framebuffer_size_callback);
+    glfwSetFramebufferSizeCallback(window1, framebuffer_size_callback);
     Shader ourShader2("shader.vs", "shader.fs");
     
 
 
 
 //window를 위한 VAO, VBO, EBO 준비
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(window1);
     // wall 단계
     unsigned int EBOW;
     glGenBuffers(1, &EBOW);
@@ -299,7 +297,7 @@ int main(){
 
 
 // window2를 위한 VAO준비, 벽 그릴거다. eye로 보는걸 그리는거니 E.
-    glfwMakeContextCurrent(window2);
+    glfwMakeContextCurrent(window);
     unsigned int EBOE;
     glGenBuffers(1, &EBOE);
     unsigned int VBOE;
@@ -316,25 +314,25 @@ int main(){
     glBufferData(GL_ARRAY_BUFFER, sizeof(wallEyeVertics), wallEyeVertics, GL_STATIC_DRAW);
 
 
-    while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window2))
+    while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window1))
     {
         processInput(window);
         renderTime = (float)glfwGetTime();
 
+        glfwMakeContextCurrent(window1);
+        glClearColor(1.0f,1.0f,1.0f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT);
         glfwMakeContextCurrent(window);
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
-        glfwMakeContextCurrent(window2);
-        glClearColor(1.0f,1.0f,1.0f,1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClear(GL_DEPTH_BUFFER_BIT);
 
-        drawWall(ourShader, VAOW, window);
-        ray(ourShader, ourShader2, VAOR, VAOE, window, window2);
+        drawWall(ourShader, VAOW, window1);
+        ray(ourShader, ourShader2, VAOR, VAOE, window, window1);
 
         glfwSwapBuffers(window);
-        glfwSwapBuffers(window2);
+        glfwSwapBuffers(window1);
         glfwPollEvents();
     }
 
