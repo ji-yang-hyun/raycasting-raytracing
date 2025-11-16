@@ -25,16 +25,16 @@ float px = 2;
 float py = 2;
 float pt = 90; // player theta
 
-pair<pair<float, float >, float> wallDistance(float theta){
+pair<pair<float, float >, float> wallDistance(float theta, int layer){
     // 근데 이제 이게 ray가  가는 방향의 역방향으로도 결국 교점이 있으면 찾아버려서, 이걸 고쳐야한다 (탄젠트의 주기성 때문)
     float minDistance = -1;
     float thetaF = theta;
     // 교점의 x,y좌표
     float IX = 0;
     float IY = 0;
-    for(int i = 0; i<walls.size(); i++){
-        float x = walls[i].second;
-        float y = walls[i].first; 
+    for(int i = 0; i<walls[layer].size(); i++){
+        float x = walls[layer][i].second;
+        float y = walls[layer][i].first; 
         // 좌표계(x+,y+) 기준
         float distance = 0;
         int kx, ky;
