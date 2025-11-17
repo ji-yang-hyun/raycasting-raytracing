@@ -298,6 +298,7 @@ int main(){
     
 
     // ray 단계
+    glfwMakeContextCurrent(windows[0]);
     unsigned int EBOR;
     glGenBuffers(1, &EBOR);
     unsigned int VBOR;
@@ -369,11 +370,6 @@ int main(){
     return 0;
 }
 
-
-/*
-지금 층 만드는것 까지 했는데 버퍼가 꼬였는지  0층에서 ray를 그릴때 벽까지 ray의 오브젝트를 쓴다.
-다른 문제점은 없고 플레이어 높이랑 다 고려해서 다시 저 ray부분을 다중 층을 사용할 수 있게 바꿔야한다.(지금 ray는 여전히 0층만.)
-*/
 
 /*
 두 윈도우가 메인 윈도우일때(glfwMakeContextCurrent)
