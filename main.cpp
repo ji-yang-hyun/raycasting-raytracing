@@ -6,7 +6,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <math.h>
-#include <string>
 #include"map.h"
 #include"rayc.h"
 
@@ -23,10 +22,9 @@ pair<float, float> setPosition(float newpx,float newpy){
     float x = newpx;
     float y = newpy;
     float xDistance, yDistance;
-    // 일단 아직은 1층에만 플레이어가 있을거라고 간주하고 이동
-    for(int i=0;i<walls[0].size();i++){
-        xDistance = newpx - walls[0][i].second;
-        yDistance = newpy - walls[0][i].first;
+    for(int i=0;i<walls.size();i++){
+        xDistance = newpx - walls[i].second;
+        yDistance = newpy - walls[i].first;
         
         if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
             x = px;
@@ -110,13 +108,13 @@ unsigned int indices[] = {
 
 
 
-void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* windowL, int layer){
-    glfwMakeContextCurrent(windowL);
+void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window1){
+    glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOW);
-    for(unsigned int i = 0; i < walls[layer].size(); i++)
+    for(unsigned int i = 0; i < walls.size(); i++)
         {
-            float wallx = walls[layer][i].second;
-            float wally = walls[layer][i].first;
+            float wallx = walls[i].second;
+            float wally = walls[i].first;
 
             glm::mat4 model;
             model = glm::translate(
@@ -130,8 +128,8 @@ void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* windowL, int laye
     }
 }
 
-void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* windowC){
-    glfwMakeContextCurrent(windowC);
+void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* window1){
+    glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOR);
     rayVertics[0] = 2*(ix/mapSize)/1.0f - 1.0f;
     rayVertics[1] = 2*(iy/mapSize)/1.0f - 1.0f;
@@ -197,16 +195,15 @@ void ray(Shader ourShader, Shader ourShader2,
     GLFWwindow* window, GLFWwindow* window1){
     for(int i=0;i<pixelX;i++){
         float theta = fmod(pt - povHorizontal/2 + dt/2 + i*dt, 360);
-        pair<pair<float, float>, float > P;
-        P = wallDistance(theta, 0);
-        float distance = P.second;
-        float ix = P.first.first;
-        float iy = P.first.second;
-        // printf("각도 : %f, 거리 : %f, 교점 %f, %f \n", theta, distance, ix, iy);
+        pair<float, pair<float, float> > P;
+        P = wallDistance(theta);
+        float distance = P.first;
+        float ix = P.second.first;
+        float iy = P.second.second;
         
         if(distance != -1){
-            drawRay(ourShader2, VAOR, ix, iy, window1);
-            drawWallEye(ourShader, VAOE, distance, i, window);
+            drawRay(ourShader, VAOR, ix, iy, window1);
+            drawWallEye(ourShader2, VAOE, distance, i, window);
         }
     }
 }
@@ -221,21 +218,14 @@ int main(){
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* windows[mapLayer];
-    //아니 이거 저기 문자열에 좀 몇층인지좀 넣고싶은데 그 간단한게 안되냐...
-    for(int l=0;l<mapLayer;l++){
-        string layertitle = to_string(l);
-        string title = "raycasting2D - " + layertitle;
-        windows[l] = glfwCreateWindow(600, 600, title.c_str(), NULL, NULL);
-        if (windows[l] == NULL)
-        {
-            std::cout << "Failed to create GLFW window" << std::endl;
-            glfwTerminate();
-            return -1;
-        }
-
-        glfwMakeContextCurrent(windows[0]);
+    GLFWwindow* window1 = glfwCreateWindow(600, 600, "raycasting2D", NULL, NULL);
+    if (window1 == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
     }
+    glfwMakeContextCurrent(window1);
 
     GLFWwindow* window = glfwCreateWindow(600, 600, "raycasting3D", NULL, NULL);
     if (window == NULL)
@@ -258,47 +248,39 @@ int main(){
     glfwMakeContextCurrent(window);
     glViewport(0,0,600,600);
     glEnable(GL_DEPTH_TEST);
-    Shader windowShader;
-    windowShader.setShader("shader.vs", "shader.fs");
+    Shader ourShader;
+    ourShader.setShader("shader.vs", "shader.fs");
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    Shader windowsShader[mapLayer];
-    //사실 모든 윈도우에 쉐이더가 있기만 하면 돼서 하나로 쭉 써도 되기는 할텐데 그럼 찝찝하니 그냥 배열로 해주자
-    for(int l=0;l<mapLayer;l++){
-        glfwMakeContextCurrent(windows[l]);
-        glViewport(0,0,600,600);
-        glEnable(GL_DEPTH_TEST);  // depth test 키기
-        glfwSetFramebufferSizeCallback(windows[l], framebuffer_size_callback);
-        windowsShader[l].setShader("shader.vs", "shader.fs");
-    }
-
+    glfwMakeContextCurrent(window1);
+    glViewport(0,0,600,600);
+    glEnable(GL_DEPTH_TEST);  // depth test 키기
+    glfwSetFramebufferSizeCallback(window1, framebuffer_size_callback);
+    Shader ourShader2;
+    ourShader2.setShader("shader.vs", "shader.fs");
     
 
 
 
 //window를 위한 VAO, VBO, EBO 준비
-    unsigned int EBOW[mapLayer];
-    unsigned int VBOW[mapLayer];
-    unsigned int VAOW[mapLayer];
+    glfwMakeContextCurrent(window1);
+    // wall 단계
+    unsigned int EBOW;
+    glGenBuffers(1, &EBOW);
+    unsigned int VBOW;
+    glGenBuffers(1, &VBOW);
+    unsigned int VAOW;
+    glGenVertexArrays(1, &VAOW);  //VAO는 바인딩된 이후의 vertex속성의 호출을 저장한다
+    glBindVertexArray(VAOW);
 
-    for(int l=0;l<mapLayer;l++){
-        glfwMakeContextCurrent(windows[l]);
-        // wall 단계
-        glGenBuffers(1, &EBOW[l]);
-        glGenBuffers(1, &VBOW[l]);
-        glGenVertexArrays(1, &VAOW[l]);  //VAO는 바인딩된 이후의 vertex속성의 호출을 저장한다
-        glBindVertexArray(VAOW[l]);
-        glBindBuffer(GL_ARRAY_BUFFER, VBOW[l]);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOW[l]);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
-    }
-    
+    glBindBuffer(GL_ARRAY_BUFFER, VBOW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); 
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0); 
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
 
     // ray 단계
-    glfwMakeContextCurrent(windows[0]);
     unsigned int EBOR;
     glGenBuffers(1, &EBOR);
     unsigned int VBOR;
@@ -333,33 +315,25 @@ int main(){
     glBufferData(GL_ARRAY_BUFFER, sizeof(wallEyeVertics), wallEyeVertics, GL_STATIC_DRAW);
 
 
-    while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(windows[0]))
+    while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window1))
     {
         processInput(window);
         renderTime = (float)glfwGetTime();
 
-        for(int l=0;l<mapLayer;l++){
-            glfwMakeContextCurrent(windows[l]);
-            glClearColor(1.0f,1.0f,1.0f,1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glClear(GL_DEPTH_BUFFER_BIT);
-
-            drawWall(windowsShader[l], VAOW[l], windows[l], l);
-        }
+        glfwMakeContextCurrent(window1);
+        glClearColor(1.0f,1.0f,1.0f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT);
         glfwMakeContextCurrent(window);
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
 
+        drawWall(ourShader, VAOW, window1);
+        ray(ourShader, ourShader2, VAOR, VAOE, window, window1);
 
-        ray(windowShader, windowsShader[0], VAOR, VAOE, window, windows[0]);        
-
-
-        for(int l=0;l<mapLayer;l++){
-            glfwSwapBuffers(windows[l]);
-        }
         glfwSwapBuffers(window);
-        
+        glfwSwapBuffers(window1);
         glfwPollEvents();
     }
 
