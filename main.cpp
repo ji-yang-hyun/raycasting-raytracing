@@ -53,29 +53,29 @@ void processInput(GLFWwindow *window)
 
     if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*pt), 
-            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*pt));
+            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
+            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
         
         px = position.first;
         py = position.second;
     }
     if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*pt), 
-            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*pt));
+            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
+            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
         
         px = position.first;
         py = position.second;
     }
 
     if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
-        pt -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-        if(pt - povHorizontal/2 < 0){
-            pt += 360;
+        ptx -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        if(ptx - povHorizontal/2 < 0){
+            ptx += 360;
         }
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
-        pt += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        ptx += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
 }
 
@@ -96,6 +96,13 @@ float rayVertics[] = {
 float wallEyeVertics[] = {
     0.0f, 1.0f, 0.0f, // 위, 오른쪽
     -2.0f/(pixelX), 1.0f, 0.0f, // 위, 왼쪽
+    0.0f, 0.0f, 0.0f, // 아래, 오른쪽
+    -2.0f/(pixelX), 0.0f, 0.0f // 아래, 왼쪽
+};
+
+float pixelVertics[] = {
+    0.0f, -2.0f/(pixelY), 0.0f, // 위, 오른쪽
+    -2.0f/(pixelX), -2.0f/(pixelY), 0.0f, // 위, 왼쪽
     0.0f, 0.0f, 0.0f, // 아래, 오른쪽
     -2.0f/(pixelX), 0.0f, 0.0f // 아래, 왼쪽
 };
@@ -169,7 +176,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
         heightEyeBelow = 0.5;
     }
 
-    glm::mat4 modelO;
+    glm::mat4 modelO = glm::mat4(1.0f);
     modelO = glm::scale(modelO, glm::vec3(1,heightEyeOver*2,1));
     modelO = glm::translate(
         modelO, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
@@ -179,7 +186,7 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     ourShader2.setVec4("color", glm::vec4(color,color,color,1.0f));
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    glm::mat4 modelB;
+    glm::mat4 modelB =glm::mat4(1.0f);
     modelB = glm::scale(modelB, glm::vec3(1,-heightEyeBelow*2,1));
     modelB = glm::translate(
         modelB, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
@@ -190,11 +197,36 @@ void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNu
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
+
+void drawVerticalPixels(vector<pair<int, float> > pixelV, int pixelx,unsigned int VAOP, 
+    Shader ourShader, GLFWwindow* window){
+    glfwMakeContextCurrent(window);
+    glBindVertexArray(VAOP);
+
+    for(int i=0;i<pixelV.size();i++){
+        int pixely = pixelV[i].first;
+        float distance = pixelV[i].second;
+        // printf("%d, %d, %f\n", pixelx, pixely, distance);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(
+            model, glm::vec3(((pixelx*2.0f)/(pixelX) - 1), ((pixely*2.0f)/(pixelY) - 1),0)
+        );
+        float color = distance / (maxSightRange);
+
+        ourShader.use();
+        ourShader.setVec4("color", glm::vec4(color,color,color,1.0f));
+        ourShader.setMat4("model", model);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    }
+}
+
+
 void ray(Shader ourShader, Shader ourShader2, 
-    unsigned int VAOR, unsigned int VAOE, 
+    unsigned int VAOR, unsigned int VAOP, 
     GLFWwindow* window, GLFWwindow* window1){
     for(int i=0;i<pixelX;i++){
-        float theta = fmod(pt - povHorizontal/2 + dt/2 + i*dt, 360);
+        float theta = fmod(ptx - povHorizontal/2 + dt/2 + i*dt, 360);
         pair<float, pair<float, float> > P;
         P = wallDistance(theta);
         float distance = P.first;
@@ -202,10 +234,12 @@ void ray(Shader ourShader, Shader ourShader2,
         float iy = P.second.second;
         
         if(distance != -1){
-            drawRay(ourShader, VAOR, ix, iy, window1);
-            drawWallEye(ourShader2, VAOE, distance, i, window);
+            drawRay(ourShader2, VAOR, ix, iy, window1);
+            vector<pair<int, float> > pixelV = wallDistanceVertical(distance);
+            drawVerticalPixels(pixelV, pixelX - i, VAOP, ourShader, window);
         }
     }
+    // 뭔가 이거 쉐이더 꼬인듯
 }
 
 
@@ -262,7 +296,7 @@ int main(){
 
 
 
-//window를 위한 VAO, VBO, EBO 준비
+//window1를 위한 VAO, VBO, EBO 준비
     glfwMakeContextCurrent(window1);
     // wall 단계
     unsigned int EBOW;
@@ -297,22 +331,22 @@ int main(){
     glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertics), rayVertics, GL_STATIC_DRAW);
 
 
-// window2를 위한 VAO준비, 벽 그릴거다. eye로 보는걸 그리는거니 E.
+    //window에서 픽셀을 그리기 위한 VAO
     glfwMakeContextCurrent(window);
-    unsigned int EBOE;
-    glGenBuffers(1, &EBOE);
-    unsigned int VBOE;
-    glGenBuffers(1, &VBOE);
-    unsigned int VAOE;
-    glGenVertexArrays(1, &VAOE);  
-    glBindVertexArray(VAOE);
+    unsigned int EBOP;
+    glGenBuffers(1, &EBOP);
+    unsigned int VBOP;
+    glGenBuffers(1, &VBOP);
+    unsigned int VAOP;
+    glGenVertexArrays(1, &VAOP);  
+    glBindVertexArray(VAOP);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBOE);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOP);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOE);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOP);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);  
-    glBufferData(GL_ARRAY_BUFFER, sizeof(wallEyeVertics), wallEyeVertics, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(pixelVertics), pixelVertics, GL_STATIC_DRAW);
 
 
     while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window1))
@@ -330,7 +364,7 @@ int main(){
         glClear(GL_DEPTH_BUFFER_BIT);
 
         drawWall(ourShader, VAOW, window1);
-        ray(ourShader, ourShader2, VAOR, VAOE, window, window1);
+        ray(ourShader, ourShader2, VAOR, VAOP, window, window1);
 
         glfwSwapBuffers(window);
         glfwSwapBuffers(window1);

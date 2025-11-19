@@ -10,8 +10,8 @@
 using namespace std;
 
 #define povHorizontal 60
-#define povVertical 120
-#define dt 1 //delta theta
+#define povVertical 60
+#define dt 0.5 //delta theta
 #define pixelX povHorizontal / dt
 #define pixelY povVertical / dt
 #define PI 3.1415926
@@ -21,9 +21,13 @@ using namespace std;
 #define screenSizeY 1000
 #define maxSightRange 15
 
+//맵 기준 위치
 float px = 2;
 float py = 2;
-float pt = 90; // player theta
+float pz = playerHeight;
+//화면 기준
+float ptx = 90; // player theta // 가로
+float pty = 0; // 세로 그냥 평면 보는게 0
 
 pair<float, pair<float, float > > wallDistance(float theta){
     // 근데 이제 이게 ray가  가는 방향의 역방향으로도 결국 교점이 있으면 찾아버려서, 이걸 고쳐야한다 (탄젠트의 주기성 때문)
@@ -112,15 +116,35 @@ pair<float, pair<float, float > > wallDistance(float theta){
         }
     }
 
-    float minI=0;
-    float minD = sqrt(2) * mapSize + 1;
+    float minI=-1;
+    float minDistanceFlat = sqrt(2) * mapSize + 1;
     for(int i=0;i<distanceV.size();i++){
-        if(distanceV[i].second.first.first <= minD){
+        if(distanceV[i].second.first.first <= minDistanceFlat){
             minI = i;
-            minD = distanceV[i].second.first.first;
+            minDistanceFlat = distanceV[i].second.first.first;
         }
     }
-    
+
+    //아무 벽도 안 만나면
+    if(minI == -1){
+        return make_pair(-1, make_pair(-1, -1));
+    }
     return distanceV[minI].second.first;
+}
+
+
+vector<pair<int, float> > wallDistanceVertical(float flatDistance){
+    vector<pair<int, float > > pixelV; // 세로 픽셀위치값, ray가 만나는 점의 거리  픽셀 위치는 맨 아래가 0
+
+    for(int i=0;i<pixelY;i++){
+        float thetaY = fmod(pty - povVertical/2 + dt/2 + i*dt, 360);
+        float distance = flatDistance / cos(PI/180 * thetaY);
+        float height = distance * sin(PI/180 * thetaY);
+        if(height + playerHeight <= wallHeight && height + playerHeight >= 0){
+            pixelV.push_back(make_pair(i, distance));
+        }
+    }
+
+    return pixelV;
 }
 #endif
