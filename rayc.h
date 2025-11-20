@@ -5,13 +5,16 @@
 #include<vector>
 #include<cmath>
 #include<algorithm>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include"map.h"
 
 using namespace std;
 
 #define povHorizontal 60
 #define povVertical 60
-#define dt 0.5 //delta theta
+#define dt 1 //delta theta
 #define pixelX povHorizontal / dt
 #define pixelY povVertical / dt
 #define PI 3.1415926
@@ -21,6 +24,9 @@ using namespace std;
 #define screenSizeY 1000
 #define maxSightRange 15
 
+// 소수 비교할 때 같다고 할 최소거리
+#define equal 0.0001
+
 //맵 기준 위치
 float px = 2;
 float py = 2;
@@ -29,85 +35,127 @@ float pz = playerHeight;
 float ptx = 90; // player theta // 가로
 float pty = 0; // 세로 그냥 평면 보는게 0
 
-pair<float, pair<float, float > > wallDistance(float theta){
+
+glm::vec2 getTransformPosition(glm::vec2 P, float thetaY, glm::vec2 D){
+        float a = D.x * P.x + D.y * P.y;
+        float b = -(D.y*P.x) + D.x * P.y;
+        float x = D.x * (a/cos(PI/180*thetaY)) + b*(-D.y);
+        float y = D.y * (a/cos(PI/180*thetaY)) + b*(D.x);
+        glm::vec2 R = glm::vec2(x,y);
+
+        return R;
+}
+
+
+
+pair<float, pair<float, float > > wallDistance(float thetaX, float thetaY){
     // 근데 이제 이게 ray가  가는 방향의 역방향으로도 결국 교점이 있으면 찾아버려서, 이걸 고쳐야한다 (탄젠트의 주기성 때문)
     // 어차피 하나의 직선은 사각형에서 두 변만 지날 수 있다
-    float thetaX = theta;
     vector<pair<int, pair<pair<float, pair<float, float> >, pair<float, pair<float, float> > > > > distanceV; 
     // {i번쨰 벽, { {minD,{minX,minY}, {maxD,{maxX,maxY}} } } } 벡터 (절단면 구성 위해 필요)
 
     for(int i = 0; i<walls.size(); i++){
         // 교점의 과표 ix,iy
-        float ix, iy;
-        float x = walls[i].second;
-        float y = walls[i].first; 
-        float minDistance = sqrt(2) * mapSize + 1; // 나올 수 있는 최대 거리 + 1
+        float xo = walls[i].second; // x original
+        float yo = walls[i].first; // y original
+        glm::vec2 W = glm::vec2(xo,yo);
+        glm::vec2 D = glm::vec2(cos(PI/180*ptx),sin(PI/180*ptx));
+        W = getTransformPosition(W, thetaY, D);
+        
+        float minDistance = 1000000; // 
         float maxDistance = -1;
         float IXmax, IYmax, IXmin, IYmin = 0;
         // 좌표계(x+,y+) 기준
         float distance = 0;
-        int kx, ky;
 
-        //좌표관계에 따라서 반대쪽 벽은 볼 필요조차 없다 -> 근데 절단면 만들거면 필요하다 그러니 나랑 가까운 쪽 한 번, 먼 쪽 한 번 하자.
-        // 근데 가까운쪽에서 두 번 만나고 끝일 수도 있다. 아님 그 반대거나, 조심]
-        // 이론적으로는 그런데 만약에 ray가 모서리를 스치거나 해버리면 또 이상해질 수 있으니 한 벽당 가장 가까운거, 가장 먼 걸로 나누자.
-        // 그리고 그런것들의 집합을 만든 후 마지막에 전체 벽중 가장 가까운거 하나만 꼽는거지.
-        // 그리고 붙어있는 친구들 모아줄건데, 결국 대입하는 x,y좌표가 완전히 같을거라 붙어있으면 좌표 자체가 같지 않을까 싶긴 한데 
-        //어차피 거리 비교할거다
-        // 소수의 경우 == 연산자를 사용하는게 위험한 경우들이 많이 있다. 0.2 == 0.20 이 false인 것 처럼... 그러니 뭉갤 거리를 잡아서 하자.
-        // 그리고 한 ray에서 거리와 나타내는 점은 일대일 대응인것을 명심하자
-        // ray가 바닥을 뚫을 경우를 생각할 수 있지만, 아직은 그저 map 평면에서의 일이다.
+        glm::vec2 area[4];
+        int ka[8] = {-1,-1, 1,-1, 1,1, -1,1};
+        for(int j=0;j<4;j++){
+            glm::vec2 A = glm::vec2(ka[2*j]*0.5f, ka[2*j + 1]*0.5f);
+            area[j] = getTransformPosition(A, thetaY, D);
+        }
 
-        // 가까운 쪽부터!
-        if(x - px >= 0) kx = -1;
-        else kx = 1;
-        if(y - py >= 0) ky = -1;
-        else ky = 1;
+       
 
-        for(int dumb = 0;dumb<2;dumb++){ // 가까운거 두 변, 먼 거 두 변 체크
-            iy = tan(PI/180 * thetaX) * (x + 0.5*kx - px) + py;
-            ix = (y + 0.5*ky - py) / tan(PI/180 * thetaX) + px;
-        
-            if((y - iy) <= 0.5 && (y - iy) >= -0.5){
-                if((thetaX - 180) * (iy - py) < 0){ // 180만큼 주기성을 가지는 tan x가 반대방향에 있는걸 잡지 않게 해주기
-                    distance = sqrt(pow((x + 0.5*kx - px),2) + pow((iy - py),2));
-                    
-                    if(distance < minDistance){
-                        minDistance = distance;
-                        IXmin = x + 0.5*kx;
-                        IYmin = iy;
+        for(int j = 0;j<4;j++){
+            float x1 = W.x + area[j].x;
+            float x2 = W.x + area[(j+1)%4].x;
+            float y1 = W.y + area[j].y;
+            float y2 = W.y + area[(j+1)%4].y;
 
+            float ix,iy;
+            // tan이 매우 커지면 계산하기 힘들기 때문에 만약에 tan이 1보다 크면 점대칭점 사용해서 구하자.
+            // 지금 뭔가 벽이 감지가 되는듯 하다가도 안되고 막 그러는데 일단 지금 보이는 문제는, x1-x2, y1-y2가 0일때 문제가 생기고
+            // 그 떄그냥 계산이 튕겨버릴 수 있다. 
+            // 그 때들을 잘 예외처리를 해주어야할 것 같고, 또한 그 상태에서 소숫점 비교는 정확하지 않을 수 있다는거 명심!
+            // 그리고 지금 되는 애들은 그게 0인 경우지만 점대칭이나 다른 이유로 그 0이 분모에 안 들어가서일거다.
+            // 그리고 또 문제가 생길 수 있는게 만약에 (x2-x1)/(y2-y1) - tan(PI/180*thetaX - PI/2)가 0이면... 그 때는 평행하다는건데
+            // 그것도 예외처리 해줘야할 것 같다.
+            if(pow(tan(PI/180*thetaX), 2) > 1){
+                iy = (px - x1 - tan(PI/180*thetaX - PI/2)*py + 
+                ((x2-x1)/(y2-y1))*y1)/((x2-x1)/(y2-y1) - tan(PI/180*thetaX - PI/2));
+                ix = tan(PI/180*thetaX - PI/2) * (iy - py) + px;
+            }
+            else{
+                ix = (py - y1 - tan(PI/180*thetaX)*px + ((y2-y1)/(x2-x1))*x1)/((y2-y1)/(x2-x1) - tan(PI/180*thetaX));
+                iy = tan(PI/180*thetaX) * (ix - px) + py;
+            }
+
+            
+            // x1 = x2이면 소숫점 조금만 틀어져도 감지가 안 된다. 그러니 iy조건도 넣어서 둘중 하나는 차이가 있을테니 그걸 감지하자
+            if((py - iy) * (thetaX - 180) < 0){ // ray 진행방향의 반대방향이다.
+                continue;
+            }
+
+            if(pow(x1 - x2,2) <= equal){
+                if((y1 <= iy && iy <= y2) || (y2 <= iy && iy <= y1)){
+                    distance = sqrt(pow((ix - px),2) + pow((iy - py),2));
+                
+
+                    if(distance <= 0.0001){
+                        printf("(%f, %f), D = %f, (%f, %f) (%f, %f) (%f, %f) (%f)\n",
+                        ix, iy, distance, x1, y1, x2, y2, px,  py, tan(PI/180*thetaX));
+                        
+                        printf("area1 : (%f, %f)   area2 : (%f, %f) \n",
+                        area[j].x, area[j].y, area[(j+1)%4].x, area[(j+1)%4].y);
                     }
-                    if(distance > maxDistance){
+                    if(distance <= minDistance){
+                        minDistance = distance;
+                        IXmin = ix;
+                        IYmin = iy;
+                    }
+                    if(distance >= maxDistance){
                         maxDistance = distance;
-                        IXmax = x + 0.5*kx;
+                        IXmax = ix;
                         IYmax = iy;
                     }
-                
                 }
             }
-            if((x - ix) <= 0.5 && (x - ix) >= -0.5){
-                if((thetaX - 180) * (y + 0.5*ky - py) < 0){
-                    distance = sqrt(pow((y + 0.5*ky - py),2) + pow((ix - px),2));
-                   
-                    if(distance < minDistance){
-                        IYmin = y + 0.5*ky;
-                        IXmin = ix;
-                        minDistance = distance;
-                    }
-                    if(distance > maxDistance){
-                        IYmax = y + 0.5*ky;
-                        IXmax = ix;
-                        maxDistance = distance;
-                    }
-                }
-            }
+            else{
+                if((x1 <= ix && ix <= x2) || (x2 <= ix && ix <= x1)){
+                    distance = sqrt(pow((ix - px),2) + pow((iy - py),2));
+                    
 
-            kx = kx * -1;
-            ky = ky * -1;
+                    if(distance <= 0.0001){
+                        printf("(%f, %f), D = %f, (%f, %f) (%f, %f) (%f, %f) (%f)\n",
+                        ix, iy, distance, x1, y1, x2, y2, px,  py, tan(PI/180*thetaX));
+
+                    }
+                    if(distance <= minDistance){
+                        minDistance = distance;
+                        IXmin = ix;
+                        IYmin = iy;
+                    }
+                    if(distance >= maxDistance){
+                        maxDistance = distance;
+                        IXmax = ix;
+                        IYmax = iy;
+                    }
+                }
+            }
         }
         //근데 안 만나는 오브젝트들도 있을거 아냐
-        if(minDistance != sqrt(2) * mapSize + 1 && maxDistance != -1){
+        if(minDistance != 1000000000 && maxDistance != -1){
             distanceV.push_back(make_pair(i, 
             make_pair(
                 make_pair(minDistance, make_pair(IXmin, IYmin)),
@@ -117,8 +165,9 @@ pair<float, pair<float, float > > wallDistance(float theta){
     }
 
     float minI=-1;
-    float minDistanceFlat = sqrt(2) * mapSize + 1;
+    float minDistanceFlat = 1000000000;
     for(int i=0;i<distanceV.size();i++){
+        
         if(distanceV[i].second.first.first <= minDistanceFlat){
             minI = i;
             minDistanceFlat = distanceV[i].second.first.first;
@@ -130,21 +179,5 @@ pair<float, pair<float, float > > wallDistance(float theta){
         return make_pair(-1, make_pair(-1, -1));
     }
     return distanceV[minI].second.first;
-}
-
-
-vector<pair<int, float> > wallDistanceVertical(float flatDistance){
-    vector<pair<int, float > > pixelV; // 세로 픽셀위치값, ray가 만나는 점의 거리  픽셀 위치는 맨 아래가 0
-
-    for(int i=0;i<pixelY;i++){
-        float thetaY = fmod(pty - povVertical/2 + dt/2 + i*dt, 360);
-        float distance = flatDistance / cos(PI/180 * thetaY);
-        float height = distance * sin(PI/180 * thetaY);
-        if(height + playerHeight <= wallHeight && height + playerHeight >= 0){
-            pixelV.push_back(make_pair(i, distance));
-        }
-    }
-
-    return pixelV;
 }
 #endif

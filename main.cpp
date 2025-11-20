@@ -6,6 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <math.h>
+#include<algorithm>
 #include"map.h"
 #include"rayc.h"
 
@@ -38,20 +39,7 @@ void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-        px += playerSpeed * ((float)glfwGetTime() - renderTime);
-    }
-    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-        px -= playerSpeed * ((float)glfwGetTime() - renderTime);
-    }
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
-        py += playerSpeed * ((float)glfwGetTime() - renderTime);
-    }
-    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
-        py -= playerSpeed * ((float)glfwGetTime() - renderTime);
-    }
-
-    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
         pair<float, float> position = setPosition(
             px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
             py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
@@ -59,13 +47,23 @@ void processInput(GLFWwindow *window)
         px = position.first;
         py = position.second;
     }
-    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
+    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
         pair<float, float> position = setPosition(
             px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
             py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
         
         px = position.first;
         py = position.second;
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
+        pty += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
+        pty -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        if(pty - povVertical/2 < 0){
+            pty += 360;
+        }
     }
 
     if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
@@ -80,17 +78,17 @@ void processInput(GLFWwindow *window)
 }
 
 float wallVertics[] = {
-    1.0f/mapSize, 1.0f/mapSize, 0.0f,
-    -1.0f/mapSize, 1.0f/mapSize, 0.0f,
-    1.0f/mapSize, -1.0f/mapSize, 0.0f,
-    -1.0f/mapSize, -1.0f/mapSize, 0.0f,
+    1.0f/mapSize, 1.0f/mapSize, 0.0f, // 위 오른쪽
+    -1.0f/mapSize, 1.0f/mapSize, 0.0f, // 위 왼쪽
+    1.0f/mapSize, -1.0f/mapSize, 0.0f, // 아래 오른쪽
+    -1.0f/mapSize, -1.0f/mapSize, 0.0f, // 아래 왼쪽
 };
 
 float rayVertics[] = {
-    0.01f, 1.0f, 0.1f, // 위, 오른쪽
-    -0.01f, 1.0f, 0.1f, // 위, 왼쪽
-    0.01f, 0.0f, 0.1f, // 아래, 오른쪽
-    -0.01f, 0.0f, 0.1f // 아래, 왼쪽
+    0.01f, 1.0f, -0.1f, // 위, 오른쪽
+    -0.01f, 1.0f, -0.1f, // 위, 왼쪽
+    0.01f, 0.0f, -0.1f, // 아래, 오른쪽
+    -0.01f, 0.0f, -0.1f // 아래, 왼쪽
 };
 
 float wallEyeVertics[] = {
@@ -115,29 +113,44 @@ unsigned int indices[] = {
 
 
 
-void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window1){
+void drawWall(float thetaY, Shader ourShader, unsigned int VAOW, unsigned int VBOW, GLFWwindow* window1){
     glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOW);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOW);
     for(unsigned int i = 0; i < walls.size(); i++)
-        {
-            float wallx = walls[i].second;
-            float wally = walls[i].first;
+    {
+        float xw = walls[i].second; // x original
+        float yw = walls[i].first; // y original
+        
+        glm::vec2 D = glm::vec2(cos(PI/180*ptx),sin(PI/180*ptx));
+        glm::vec2 P;
+        glm::vec2 W = getTransformPosition(glm::vec2(xw,yw), thetaY, D);
+        // area에서 x,y의 부호나 방향에 민감하니 각각 해줘야한다.
 
-            glm::mat4 model;
-            model = glm::translate(
-                model, glm::vec3((wallx) * 2.0f/mapSize - 1, (wally) * 2.0f/mapSize - 1, 0)
-            );
-            ourShader.use();
-            ourShader.setMat4("model", model);
-            ourShader.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+        int ka[8] = {1,1, -1,1, 1,-1, -1,-1};
+        for(int j=0;j<4;j++){
+            glm::vec2 A = glm::vec2(ka[2*j]*0.5f, ka[2*j + 1]*0.5f);
+            P = getTransformPosition(A, thetaY, D);
+            wallVertics[3*j] = std::max(std::min(2*((W.x + P.x)/mapSize)/1.0f - 1.0f, 1.0f), -1.0f);
+            
+            wallVertics[3*j + 1] = std::max(std::min(2*((W.y + P.y)/mapSize)/1.0f - 1.0f, 1.0f), -1.0f);
+        }
 
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        ourShader.use();
+        ourShader.setMat4("model", model);
+        ourShader.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 }
 
-void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow* window1){
+void drawRay(Shader ourShader, unsigned int VAOR, unsigned int VBOR, float ix, float iy, GLFWwindow* window1){
     glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOR);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOR);
+
     rayVertics[0] = 2*(ix/mapSize)/1.0f - 1.0f;
     rayVertics[1] = 2*(iy/mapSize)/1.0f - 1.0f;
     rayVertics[6] = 2*(px/mapSize)/1.0f - 1.0f;
@@ -159,88 +172,34 @@ void drawRay(Shader ourShader, unsigned int VAOR, float ix, float iy, GLFWwindow
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-void drawWallEye(Shader ourShader2, unsigned int VAOE, float distance, int colNum, GLFWwindow* window){
-    glfwMakeContextCurrent(window);
-    glBindVertexArray(VAOE);
-
-    float heightEyeOver = (wallHeight - playerHeight) / (2 * distance * tan(PI/180*povVertical/2)); 
-    float heightEyeBelow = (wallHeight - (wallHeight - playerHeight)) / (2 * distance * tan(PI/180*povVertical/2)); 
-    //화면에 보이는 높이, 기준단위는 우리 맵과 같은 좌표계, 눈의 위, 아래로 나눈다.
-    //내 시야에서 차지하는 비율이기 때문에 전체 화면 크기인 2(1~-1)을 감안해서 단순히 그냥 사용해주면 된다.
-    float color = distance / (maxSightRange);
-
-    if(heightEyeOver >= 0.5){ // 내 눈 위의 시야를 꽉 채운다면
-        heightEyeOver = 0.5;
-    }
-    if(heightEyeBelow >= 0.5){ // 내 눈 아래의 시야를 꽉 채운다면
-        heightEyeBelow = 0.5;
-    }
-
-    glm::mat4 modelO = glm::mat4(1.0f);
-    modelO = glm::scale(modelO, glm::vec3(1,heightEyeOver*2,1));
-    modelO = glm::translate(
-        modelO, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
-    );
-    ourShader2.use();
-    ourShader2.setMat4("model", modelO);
-    ourShader2.setVec4("color", glm::vec4(color,color,color,1.0f));
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-    glm::mat4 modelB =glm::mat4(1.0f);
-    modelB = glm::scale(modelB, glm::vec3(1,-heightEyeBelow*2,1));
-    modelB = glm::translate(
-        modelB, glm::vec3(-((colNum*2.0f)/(pixelX) - 1), 0,0)
-    );
-    ourShader2.use();
-    ourShader2.setMat4("model", modelB);
-    ourShader2.setVec4("color", glm::vec4(color,color,color,1.0f));
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-}
-
-
-void drawVerticalPixels(vector<pair<int, float> > pixelV, int pixelx,unsigned int VAOP, 
-    Shader ourShader, GLFWwindow* window){
-    glfwMakeContextCurrent(window);
-    glBindVertexArray(VAOP);
-
-    for(int i=0;i<pixelV.size();i++){
-        int pixely = pixelV[i].first;
-        float distance = pixelV[i].second;
-        // printf("%d, %d, %f\n", pixelx, pixely, distance);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(
-            model, glm::vec3(((pixelx*2.0f)/(pixelX) - 1), ((pixely*2.0f)/(pixelY) - 1),0)
-        );
-        float color = distance / (maxSightRange);
-
-        ourShader.use();
-        ourShader.setVec4("color", glm::vec4(color,color,color,1.0f));
-        ourShader.setMat4("model", model);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    }
-}
-
-
-void ray(Shader ourShader, Shader ourShader2, 
-    unsigned int VAOR, unsigned int VAOP, 
+void ray2D(float thetaY,
+    Shader ourShader, Shader ourShader2, 
+    unsigned int VAOR, unsigned int  VBOR, unsigned int VAOP,
     GLFWwindow* window, GLFWwindow* window1){
     for(int i=0;i<pixelX;i++){
-        float theta = fmod(ptx - povHorizontal/2 + dt/2 + i*dt, 360);
+        float thetaX = fmod(ptx - povHorizontal/2 + dt/2 + i*dt, 360);
         pair<float, pair<float, float> > P;
-        P = wallDistance(theta);
+        P = wallDistance(thetaX, thetaY);
         float distance = P.first;
         float ix = P.second.first;
         float iy = P.second.second;
         
         if(distance != -1){
-            drawRay(ourShader2, VAOR, ix, iy, window1);
-            vector<pair<int, float> > pixelV = wallDistanceVertical(distance);
-            drawVerticalPixels(pixelV, pixelX - i, VAOP, ourShader, window);
+            drawRay(ourShader2, VAOR, VBOR, ix, iy, window1);
         }
     }
-    // 뭔가 이거 쉐이더 꼬인듯
 }
+
+
+// void ray3D(
+//     Shader ourShader, Shader ourShader2, 
+//     unsigned int VAOR, unsigned int VAOP,
+//     GLFWwindow* window, GLFWwindow* window1){
+//         for(int i=0;i<pixelY;i++){
+//         float thetaY = fmod(pty - povVertical/2 + dt/2 + i*dt, 360);
+//         ray2D(thetaY, ourShader, ourShader2, VAOR, VAOP, window, window1);
+//     }
+// }
 
 
 int main(){
@@ -307,11 +266,15 @@ int main(){
     glGenVertexArrays(1, &VAOW);  //VAO는 바인딩된 이후의 vertex속성의 호출을 저장한다
     glBindVertexArray(VAOW);
 
+    // location 0에 넣을 설정들, VBOW를 사용할거고 블라블라블라
     glBindBuffer(GL_ARRAY_BUFFER, VBOW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOW);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0); 
+    //그동안은 여기에 있는 enable이 저기 vs쉐이더에 들어가는 0번이라고 생각했는데, 그건 얘의 인덱스니 당연한거고
+    //그 진짜 의미는 지금 연결된 GL_ARRAY_BUFFER을 VAO의 0번쨰 location과 연결하는, 즉 
+    // VAO - vs사이의 연결이 아니라 VAO[0] - VBO(GL_ARRAY_BUFFER)을 연결하는 거였다.
+    glEnableVertexAttribArray(0);
     glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
 
     // ray 단계
@@ -320,7 +283,7 @@ int main(){
     unsigned int VBOR;
     glGenBuffers(1, &VBOR);
     unsigned int VAOR;
-    glGenVertexArrays(1, &VAOR);  
+    glGenVertexArrays(1, &VAOR);
     glBindVertexArray(VAOR);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBOR);
@@ -349,6 +312,7 @@ int main(){
     glBufferData(GL_ARRAY_BUFFER, sizeof(pixelVertics), pixelVertics, GL_STATIC_DRAW);
 
 
+
     while(!glfwWindowShouldClose(window) && !glfwWindowShouldClose(window1))
     {
         processInput(window);
@@ -363,8 +327,11 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        drawWall(ourShader, VAOW, window1);
-        ray(ourShader, ourShader2, VAOR, VAOP, window, window1);
+        
+        drawWall(pty, ourShader2, VAOW, VBOW, window1);
+        // float thetaY = fmod(pty - povVertical/2 + dt/2 + renderTime*dt, povVertical);
+        ray2D(pty, ourShader, ourShader2, VAOR, VBOR, VAOP, window, window1);
+        
 
         glfwSwapBuffers(window);
         glfwSwapBuffers(window1);
@@ -373,8 +340,6 @@ int main(){
 
 
     glfwTerminate();
-
-    setPosition(2,2);
     return 0;
 }
 
@@ -400,3 +365,35 @@ VAOR를 바인드를 하는데 사실 window2입장에서 이게 뭐지 싶을�
 그래서 VAOE에서 포인터를, VAOR정의하면서 정점들을, 이렇게 계속 짬뽕시켜 나가는거다.
 그래서 애초에 맨 처음에 VAOE에서 포인터 설정을 안하면 동작을 안한다. 짬뽕할게 없기 때문. 
 */ 
+
+
+/*
+VAO를 바인드한다고 해서 VBO가 바인드되는게 아닌가보다.
+원래는 drawRay에서만 값을 바꾸고, 마지막으로 window1에 바인드됐던게 VBOR이라 괜찮았는데
+이번에 drawWall에서 VAOW만 바인드하고 glBufferData를 하니 그 데이터가 window1에 바인드돼있던
+마지막 VBO인 VBOR에 들어가고 말았다.
+근데 그 상태에서 또 drawelement는 VAOW를 기준으로 VBOW를 그리고 있었으니...
+이게 뭔지 잘 모르겠다 ㅋㅋㅋ
+
+그러니까 VAOW에서 VBOW, EBOW에 대한 포인터를 가지고 있어서 가지고 오는데
+그걸 직접 바인드하는게 아니라 그냥 VAOW에서 어떤거랑 어떤게 바인드됐었고 그거의 attrib포인터는 이래!
+하고 그걸 그냥 기억해온 후 drawelement에 사용할 뿐
+지금 현재 바인드 된 GL_ARRAY_BUFFER에 값을 꽂아넣는 glBufferData에서는 여전히 마지막으로 바인드 된
+VBOR을 사용한다는것으로 이해하면 되려나?
+
+
+그니까 정리하면
+VAO - VBO, EBO등등을 가지고 있는게 맞고 그걸 사용하지만 직접 각각을 "바인딩" 하지는 않는다
+glEnableVertexAttribArray자체가 연결하는건 아니고, attributePointer로 몇번 인덱스에 어떤 모양의 버퍼가 들어갈지 지정하고
+glEnableVertexAttribArray로 그 지정된걸 사용하겠다고 하는거다.
+그러니까 항상 GL_ARRAY_BUFFER는 마지막으로 바인딩한걸 그대로 가지고 있고, VAO를 바인딩한다고 그걸 따라가지 않는다.
+attributePointer로 형식지정 후, 어떤 주소에 있는 VBO를 참조할지 설정 후에 glEnableVertexAttribArray로 연결.
+나중에 그 VBO값을 바꾸면 그걸 참조한 VAO에서도 마찬가지로 바뀐다.
+
+BufferData로 GPU에 어떤 정점을 어떻게 그릴지 미리 갖다놓는다. 그리고 그걸 VAO로 참조...
+GL_BUFFER_ARRAY는 GPU에 가기 전에 데이터를 뭉탱이로 보관하는거고
+나중에 거기있는걸 BufferData를 써서 지금 연결된 VBO주소에(GPU) 보내주는거다.
+
+학습링크
+https://rito15.github.io/posts/opengl-study-04/
+*/
