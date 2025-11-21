@@ -7,6 +7,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <math.h>
 #include<algorithm>
+#include <time.h>
+#include <unistd.h> // <windows.h> 대체
 #include"map.h"
 #include"rayc.h"
 
@@ -24,8 +26,8 @@ pair<float, float> setPosition(float newpx,float newpy){
     float y = newpy;
     float xDistance, yDistance;
     for(int i=0;i<walls.size();i++){
-        xDistance = newpx - walls[i].second;
-        yDistance = newpy - walls[i].first;
+        xDistance = newpx - walls[i].x;
+        yDistance = newpy - walls[i].y;
         
         if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
             x = px;
@@ -75,6 +77,14 @@ void processInput(GLFWwindow *window)
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
         ptx += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
+
+
+    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+        layerToSee += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+        layerToSee -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+    }
 }
 
 float wallVertics[] = {
@@ -113,40 +123,27 @@ unsigned int indices[] = {
 
 
 
-void drawWall(float thetaY, Shader ourShader, unsigned int VAOW, unsigned int VBOW, GLFWwindow* window1){
+void drawWall(Shader ourShader, unsigned int VAOW, GLFWwindow* window1){
     glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOW);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOW);
     for(unsigned int i = 0; i < walls.size(); i++)
-    {
-        float xw = walls[i].second; // x original
-        float yw = walls[i].first; // y original
-        
-        glm::vec2 D = glm::vec2(cos(PI/180*ptx),sin(PI/180*ptx));
-        glm::vec2 P;
-        glm::vec2 W = getTransformPosition(glm::vec2(xw,yw), thetaY, D);
-        // area에서 x,y의 부호나 방향에 민감하니 각각 해줘야한다.
+        {
+            float wallx = walls[i].x;
+            float wally = walls[i].y;
 
-        int ka[8] = {1,1, -1,1, 1,-1, -1,-1};
-        for(int j=0;j<4;j++){
-            glm::vec2 A = glm::vec2(ka[2*j]*0.5f, ka[2*j + 1]*0.5f);
-            P = getTransformPosition(A, thetaY, D);
-            wallVertics[3*j] = std::max(std::min(2*((W.x + P.x)/mapSize)/1.0f - 1.0f, 1.0f), -1.0f);
-            
-            wallVertics[3*j + 1] = std::max(std::min(2*((W.y + P.y)/mapSize)/1.0f - 1.0f, 1.0f), -1.0f);
-        }
+            glm::mat4 model;
+            model = glm::translate(
+                model, glm::vec3((wallx) * 2.0f/mapSize - 1, (wally) * 2.0f/mapSize - 1, 0)
+            );
+            ourShader.use();
+            ourShader.setMat4("model", model);
+            ourShader.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
 
-        glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertics), wallVertics, GL_STATIC_DRAW);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        ourShader.use();
-        ourShader.setMat4("model", model);
-        ourShader.setVec4("color", glm::vec4(0.0f,0.0f,0.0f,1.0f));
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 }
 
-void drawRay(Shader ourShader, unsigned int VAOR, unsigned int VBOR, float ix, float iy, GLFWwindow* window1){
+void drawRay(Shader ourShader2, unsigned int VAOR, unsigned int VBOR, float ix, float iy, GLFWwindow* window1){
     glfwMakeContextCurrent(window1);
     glBindVertexArray(VAOR);
     glBindBuffer(GL_ARRAY_BUFFER, VBOR);
@@ -165,41 +162,77 @@ void drawRay(Shader ourShader, unsigned int VAOR, unsigned int VBOR, float ix, f
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertics), rayVertics, GL_STATIC_DRAW);
     glm::mat4 model = glm::mat4(1.0f);
-    ourShader.use();
-    ourShader.setMat4("model", model);
-    ourShader.setVec4("color", glm::vec4(0.7f,0.3f,1.0f,1.0f));
+    ourShader2.use();
+    ourShader2.setMat4("model", model);
+    ourShader2.setVec4("color", glm::vec4(0.7f,0.3f,1.0f,1.0f));
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-void ray2D(float thetaY,
+
+void drawPixel(int i, int j, float distance, 
+    Shader ourShader, unsigned int VAOP, unsigned int VBOP, GLFWwindow* window){
+
+    glfwMakeContextCurrent(window);
+    glBindVertexArray(VAOP);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOP);
+
+
+    glm::mat4 model;
+    model = glm::translate(
+        model, glm::vec3((j*2.0f)/pixelX - 1,  (i*2.0f)/pixelY - 1, 0)
+    );
+    float color = distance / (maxSightRange);
+
+    ourShader.use();
+    ourShader.setMat4("model", model);
+    ourShader.setVec4("color", glm::vec4(color,color,color,1.0f));
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+void ray3D(
     Shader ourShader, Shader ourShader2, 
-    unsigned int VAOR, unsigned int  VBOR, unsigned int VAOP,
+    unsigned int VAOR, unsigned int  VBOR, 
+    unsigned int VAOP, unsigned int VBOP,
     GLFWwindow* window, GLFWwindow* window1){
-    for(int i=0;i<pixelX;i++){
-        float thetaX = fmod(ptx - povHorizontal/2 + dt/2 + i*dt, 360);
-        pair<float, pair<float, float> > P;
-        P = wallDistance(thetaX, thetaY);
-        float distance = P.first;
-        float ix = P.second.first;
-        float iy = P.second.second;
-        
-        if(distance != -1){
-            drawRay(ourShader2, VAOR, VBOR, ix, iy, window1);
+    glm::vec3 D = glm::vec3(cos(PI/180*pty) * cos(PI/180*ptx), cos(PI/180*pty) * sin(PI/180*ptx),sin(PI/180*pty));
+    glm::vec3 Dnr = glm::vec3(sin(PI/180*ptx), -cos(PI/180*ptx), 0);// Srow를 위한 D의 평면직교벡터. 노트에 있는 Dㅗ
+    glm::vec3 Dnc = glm::vec3(D.z*Dnr.y - D.y*Dnr.z, D.x*Dnr.z - D.z*Dnr.x, D.y*Dnr.x - D.x*Dnr.y);
+    // Scol를 위한 D와 Dㅗ의 외적벡터. 노트에 있는 n
+
+    glm::vec3 Sr = scaleVector(Dnr, 1.0f/(tan(PI/180 * (1.0f/2)*povHorizontal)));
+    glm::vec3 Sc = scaleVector(Dnc, 1.0f/(tan(PI/180 * (1.0f/2)*povVertical)));
+
+    glm::vec3 Rd; // ray의 플레이어 좌표 기준 방향벡터
+    glm::mat3 scaleX;
+    glm::mat3 scaleY;
+
+    for(int i=0;i<pixelY;i++){
+        for(int j=0;j<pixelX;j++){
+            Rd = D + scaleVector(Sc, (i - (pixelY/2.0f)) / pixelY) + scaleVector(Sr, (j - (pixelX/2.0f)) / pixelX);
+            pair<float, glm::vec3> P = wallDistance(Rd);
+            // printf("%f\n", ((0.5)*povHorizontal));
+            if(P.first != -1){
+                if(floor(layerToSee) == (i - pixelY/2)){
+                    drawRay(ourShader2, VAOR, VBOR, P.second.x, P.second.y, window1);
+                    // drawRay(ourShader2, VAOR, VBOR, px + Sr.x, py + Sr.y, window1);
+
+                    // drawRay(ourShader2, VAOR, VBOR, px + Rd.x, py + Rd.y, window1);
+                    // drawRay(ourShader2, VAOR, VBOR, px + D.x, py + D.y, window1);
+
+                    // 이 D파생 벡터들은 잘 되고있다
+                    // drawRay(ourShader2, VAOR, VBOR, px + D.x, py + D.y, window1);
+                    // drawRay(ourShader2, VAOR, VBOR, px + Dnr.x, py + Dnr.y, window1);
+                    // drawRay(ourShader2, VAOR, VBOR, px + Dnc.x, py + Dnc.y, window1);
+                    // printf("%f, %f, %f\n", Dnc.x, Dnc.y, Dnc.z);
+                    //일단 하나씩 출력해보면서 디버깅중인데 Dnc가 안보여...
+                }
+                drawPixel(i, j, P.first, ourShader, VAOP, VBOP, window);
+            }
         }
     }
 }
-
-
-// void ray3D(
-//     Shader ourShader, Shader ourShader2, 
-//     unsigned int VAOR, unsigned int VAOP,
-//     GLFWwindow* window, GLFWwindow* window1){
-//         for(int i=0;i<pixelY;i++){
-//         float thetaY = fmod(pty - povVertical/2 + dt/2 + i*dt, 360);
-//         ray2D(thetaY, ourShader, ourShader2, VAOR, VAOP, window, window1);
-//     }
-// }
 
 
 int main(){
@@ -328,14 +361,15 @@ int main(){
         glClear(GL_DEPTH_BUFFER_BIT);
 
         
-        drawWall(pty, ourShader2, VAOW, VBOW, window1);
+        drawWall(ourShader2, VAOW, window1);
         // float thetaY = fmod(pty - povVertical/2 + dt/2 + renderTime*dt, povVertical);
-        ray2D(pty, ourShader, ourShader2, VAOR, VBOR, VAOP, window, window1);
+        ray3D(ourShader, ourShader2, VAOR, VBOR, VAOP, VBOP, window, window1);
         
 
         glfwSwapBuffers(window);
         glfwSwapBuffers(window1);
         glfwPollEvents();
+        // sleep(1);
     }
 
 
@@ -396,4 +430,12 @@ GL_BUFFER_ARRAY는 GPU에 가기 전에 데이터를 뭉탱이로 보관하는�
 
 학습링크
 https://rito15.github.io/posts/opengl-study-04/
+*/
+
+
+/*
+mac os에서 c++은
+line buffering이란 : 개행문자('\n')가 나타나거나 버퍼가 가득찰때까지 기다렸다가 한번에 출력하는것을 의미한다.
+이런 기본 설정이 있다, 그동안 내가 봐왔던게 이거.
+setbuf(stdout, NULL); // 버퍼링 비활성화 이걸 사용해서 꺼주면 된다.
 */

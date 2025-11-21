@@ -14,9 +14,8 @@ using namespace std;
 
 #define povHorizontal 60
 #define povVertical 60
-#define dt 1 //delta theta
-#define pixelX povHorizontal / dt
-#define pixelY povVertical / dt
+#define pixelX 100
+#define pixelY 100
 #define PI 3.1415926
 #define playerSpeed 2
 #define playerThetaSpeed 45
@@ -36,6 +35,9 @@ float ptx = 90; // player theta // 가로
 float pty = 0; // 세로 그냥 평면 보는게 0
 
 
+float layerToSee = 0;
+
+
 glm::vec2 getTransformPosition(glm::vec2 P, float thetaY, glm::vec2 D){
         float a = D.x * P.x + D.y * P.y;
         float b = -(D.y*P.x) + D.x * P.y;
@@ -46,123 +48,116 @@ glm::vec2 getTransformPosition(glm::vec2 P, float thetaY, glm::vec2 D){
         return R;
 }
 
+glm::vec3 scaleVector(glm::vec3 V, float k){
+    return glm::vec3(V.x * k, V.y * k, V.z * k);
+}
 
 
-pair<float, pair<float, float > > wallDistance(float thetaX, float thetaY){
+
+pair<float, glm::vec3 > wallDistance(glm::vec3 Rd){
     // 근데 이제 이게 ray가  가는 방향의 역방향으로도 결국 교점이 있으면 찾아버려서, 이걸 고쳐야한다 (탄젠트의 주기성 때문)
     // 어차피 하나의 직선은 사각형에서 두 변만 지날 수 있다
-    vector<pair<int, pair<pair<float, pair<float, float> >, pair<float, pair<float, float> > > > > distanceV; 
-    // {i번쨰 벽, { {minD,{minX,minY}, {maxD,{maxX,maxY}} } } } 벡터 (절단면 구성 위해 필요)
+    vector<pair<int, pair<pair<float, glm::vec3>, pair<float, glm::vec3> > > > distanceV; 
+    // {i번쨰 벽, { {minD,[minX,minY, minZ], {maxD,[maxX,maxY,minZ]} } } } 벡터 (절단면 구성 위해 필요)
 
     for(int i = 0; i<walls.size(); i++){
         // 교점의 과표 ix,iy
-        float xo = walls[i].second; // x original
-        float yo = walls[i].first; // y original
-        glm::vec2 W = glm::vec2(xo,yo);
-        glm::vec2 D = glm::vec2(cos(PI/180*ptx),sin(PI/180*ptx));
-        W = getTransformPosition(W, thetaY, D);
-        
+        // 1,1,1크기의 벽 블록의 중심 W
+
+        //교점 I (interaction)
+        glm::vec3 minI;
+        glm::vec3 maxI;
         float minDistance = 1000000; // 
         float maxDistance = -1;
-        float IXmax, IYmax, IXmin, IYmin = 0;
         // 좌표계(x+,y+) 기준
         float distance = 0;
 
-        glm::vec2 area[4];
-        int ka[8] = {-1,-1, 1,-1, 1,1, -1,1};
-        for(int j=0;j<4;j++){
-            glm::vec2 A = glm::vec2(ka[2*j]*0.5f, ka[2*j + 1]*0.5f);
-            area[j] = getTransformPosition(A, thetaY, D);
-        }
+        /*
+        비교해야하는건 벽의 여섯 면이다. 이걸 다 하긴 좀 그렇고...
+        결국 로직 자체는 같다, 하나의 좌표를 대입하고 그게 나머지 좌표들의 범위에 일치하는지 보는 것이다. 대신 그 범위가 평면이 됐을 뿐.
+        0.5그거 더하고 빼는거 다시 하자
+        */
+        // 직선의 표현식 R = P + kRd
 
-       
+        glm::vec3 W = walls[i];
+        glm::vec3 P = glm::vec3(px,py,pz);
+        glm::vec3 I; // ray가 가르키는 점 하나를 표현하기 위한 벡터 I
 
-        for(int j = 0;j<4;j++){
-            float x1 = W.x + area[j].x;
-            float x2 = W.x + area[(j+1)%4].x;
-            float y1 = W.y + area[j].y;
-            float y2 = W.y + area[(j+1)%4].y;
+        float k; // ray직선의 방향벡터 계수
+        
 
-            float ix,iy;
-            // tan이 매우 커지면 계산하기 힘들기 때문에 만약에 tan이 1보다 크면 점대칭점 사용해서 구하자.
-            // 지금 뭔가 벽이 감지가 되는듯 하다가도 안되고 막 그러는데 일단 지금 보이는 문제는, x1-x2, y1-y2가 0일때 문제가 생기고
-            // 그 떄그냥 계산이 튕겨버릴 수 있다. 
-            // 그 때들을 잘 예외처리를 해주어야할 것 같고, 또한 그 상태에서 소숫점 비교는 정확하지 않을 수 있다는거 명심!
-            // 그리고 지금 되는 애들은 그게 0인 경우지만 점대칭이나 다른 이유로 그 0이 분모에 안 들어가서일거다.
-            // 그리고 또 문제가 생길 수 있는게 만약에 (x2-x1)/(y2-y1) - tan(PI/180*thetaX - PI/2)가 0이면... 그 때는 평행하다는건데
-            // 그것도 예외처리 해줘야할 것 같다.
-            if(pow(tan(PI/180*thetaX), 2) > 1){
-                iy = (px - x1 - tan(PI/180*thetaX - PI/2)*py + 
-                ((x2-x1)/(y2-y1))*y1)/((x2-x1)/(y2-y1) - tan(PI/180*thetaX - PI/2));
-                ix = tan(PI/180*thetaX - PI/2) * (iy - py) + px;
-            }
-            else{
-                ix = (py - y1 - tan(PI/180*thetaX)*px + ((y2-y1)/(x2-x1))*x1)/((y2-y1)/(x2-x1) - tan(PI/180*thetaX));
-                iy = tan(PI/180*thetaX) * (ix - px) + py;
-            }
-
-            
-            // x1 = x2이면 소숫점 조금만 틀어져도 감지가 안 된다. 그러니 iy조건도 넣어서 둘중 하나는 차이가 있을테니 그걸 감지하자
-            if((py - iy) * (thetaX - 180) < 0){ // ray 진행방향의 반대방향이다.
-                continue;
-            }
-
-            if(pow(x1 - x2,2) <= equal){
-                if((y1 <= iy && iy <= y2) || (y2 <= iy && iy <= y1)){
-                    distance = sqrt(pow((ix - px),2) + pow((iy - py),2));
+        for(int ki=0;ki<2;ki++){
+            float area = 0.5 * pow(-1,ki);
+            //x부터
+            k = (W.x + area - P.x)/Rd.x;
+            if(k>=0){
+                I = P + scaleVector(Rd,k);
                 
+                if(pow(I.y - W.y, 2) <= pow(area,2) && pow(I.z - W.z, 2) <= pow(area,2)){
+                    distance = sqrt(pow((I - P).x,2) + pow((I - P).y,2) + pow((I - P).z,2));
 
-                    if(distance <= 0.0001){
-                        printf("(%f, %f), D = %f, (%f, %f) (%f, %f) (%f, %f) (%f)\n",
-                        ix, iy, distance, x1, y1, x2, y2, px,  py, tan(PI/180*thetaX));
-                        
-                        printf("area1 : (%f, %f)   area2 : (%f, %f) \n",
-                        area[j].x, area[j].y, area[(j+1)%4].x, area[(j+1)%4].y);
-                    }
-                    if(distance <= minDistance){
+                    if(distance < minDistance){
                         minDistance = distance;
-                        IXmin = ix;
-                        IYmin = iy;
+                        minI = I;
                     }
-                    if(distance >= maxDistance){
+                    if(distance > maxDistance){
                         maxDistance = distance;
-                        IXmax = ix;
-                        IYmax = iy;
+                        maxI = I;
                     }
                 }
             }
-            else{
-                if((x1 <= ix && ix <= x2) || (x2 <= ix && ix <= x1)){
-                    distance = sqrt(pow((ix - px),2) + pow((iy - py),2));
-                    
+            //y
+            k = (W.y + area - P.y)/Rd.y;
+            if(k>=0){
+                I = P + scaleVector(Rd,k);
+                
+                if(pow(I.x - W.x, 2) <= pow(area,2) && pow(I.z - W.z, 2) <= pow(area,2)){
+                    distance = sqrt(pow((I - P).x,2) + pow((I - P).y,2) + pow((I - P).z,2));
 
-                    if(distance <= 0.0001){
-                        printf("(%f, %f), D = %f, (%f, %f) (%f, %f) (%f, %f) (%f)\n",
-                        ix, iy, distance, x1, y1, x2, y2, px,  py, tan(PI/180*thetaX));
-
-                    }
-                    if(distance <= minDistance){
+                    if(distance < minDistance){
                         minDistance = distance;
-                        IXmin = ix;
-                        IYmin = iy;
+                        minI = I;
                     }
-                    if(distance >= maxDistance){
+                    if(distance > maxDistance){
                         maxDistance = distance;
-                        IXmax = ix;
-                        IYmax = iy;
+                        maxI = I;
+                    }
+                }
+            }
+            //z
+            k = (W.z + area - P.z)/Rd.z;
+            if(k>=0){
+                I = P + scaleVector(Rd,k);
+                
+                if(pow(I.y - W.y, 2) <= pow(area,2) && pow(I.x - W.x, 2) <= pow(area,2)){
+                    distance = sqrt(pow((I - P).x,2) + pow((I - P).y,2) + pow((I - P).z,2));
+
+                    if(distance < minDistance){
+                        minDistance = distance;
+                        minI = I;
+                    }
+                    if(distance > maxDistance){
+                        maxDistance = distance;
+                        maxI = I;
                     }
                 }
             }
         }
+        
+
+        
+            
         //근데 안 만나는 오브젝트들도 있을거 아냐
         if(minDistance != 1000000000 && maxDistance != -1){
             distanceV.push_back(make_pair(i, 
             make_pair(
-                make_pair(minDistance, make_pair(IXmin, IYmin)),
-                make_pair(maxDistance, make_pair(IXmax, IYmax))
+                make_pair(minDistance, minI),
+                make_pair(maxDistance, maxI)
              )));
         }
     }
+
+
 
     float minI=-1;
     float minDistanceFlat = 1000000000;
@@ -176,7 +171,7 @@ pair<float, pair<float, float > > wallDistance(float thetaX, float thetaY){
 
     //아무 벽도 안 만나면
     if(minI == -1){
-        return make_pair(-1, make_pair(-1, -1));
+        return make_pair(-1, glm::vec3());
     }
     return distanceV[minI].second.first;
 }
