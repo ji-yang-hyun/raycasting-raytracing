@@ -21,80 +21,77 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, min, min);
 }
 
-pair<float, float> setPosition(float newpx,float newpy){
-    float x = newpx;
-    float y = newpy;
-    float xDistance, yDistance;
-    for(int i=0;i<walls.size();i++){
-        xDistance = newpx - walls[i].x;
-        yDistance = newpy - walls[i].y;
-        
-        if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
-            x = player.x;
-            y = player.y;
-        }
+bool isColide(glm::vec3 move){
+    glm::vec3 position = player + move;
+    if(map[(int)floor(position.z)][mapSizeY - (int)floor(position.y) - 1][(int)floor(position.x)] == 1){
+        return true;
     }
-    return make_pair(x,y);
+    return false;
 }
 
 void processInput(GLFWwindow *window)
 {
+    glm::vec3 Dxy = glm::vec3(cos(PI/180*angle.x), sin(PI/180*angle.x),0);
+    glm::vec3 Dz = glm::vec3(0,0,1);
+    float moveDst = playerSpeed * ((float)glfwGetTime() - renderTime);
+    glm::vec3 move;
+
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
-        pair<float, float> position = setPosition(
-            player.x + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x), 
-            player.y + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x));
-        
-        player.x = position.first;
-        player.y = position.second;
+        move = scaleVector(Dxy, moveDst);
+
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
-        pair<float, float> position = setPosition(
-            player.x - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x), 
-            player.y - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x));
+        move = scaleVector(Dxy, -moveDst);
         
-        player.x = position.first;
-        player.y = position.second;
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-        pair<float, float> position = setPosition(
-            player.x - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x - PI/2), 
-            player.y - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x - PI/2));
+        move = scaleVector(glm::vec3(-Dxy.y, Dxy.x, 0), moveDst);
         
-        player.x = position.first;
-        player.y = position.second;
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-        pair<float, float> position = setPosition(
-            player.x + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x - PI/2), 
-            player.y + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x - PI/2));
+        move = scaleVector(glm::vec3(-Dxy.y, Dxy.x, 0), -moveDst);
         
-        player.x = position.first;
-        player.y = position.second;
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-        player.z += playerSpeed * ((float)glfwGetTime() - renderTime);
+        move = scaleVector(Dz, moveDst);
+        
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-        player.z -= playerSpeed * ((float)glfwGetTime() - renderTime);
+        move = scaleVector(Dz, -moveDst);
+        
+        if(!isColide(move)){
+            player = player + move;
+        }
     }
+
+
 
     if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
         angle.y += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
     if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
         angle.y -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-        if(angle.y - povVertical/2 < 0){
-            angle.y += 360;
-        }
     }
 
     if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
         angle.x -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-        if(angle.x - povHorizontal/2 < 0){
-            angle.x += 360;
-        }
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
         angle.x += playerThetaSpeed * ((float)glfwGetTime() - renderTime);

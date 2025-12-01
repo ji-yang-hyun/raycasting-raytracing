@@ -16,67 +16,32 @@ void main()
     vec2 pixelCoord = gl_FragCoord.xy/u_resolution.xy;
 
     vec3 Rd = D + Sr * ((pixelCoord.x - 0.5) / 1.0f) + Sc * ((pixelCoord.y - 0.5) / 1.0f);
-    int cnt = 0;
     
     float k;
     float dst;
     vec3 I;
-    vec3 A;
     float minDistance = -1.0f;
     vec3 W;
-    vec3 visableArea;
 
     for(int i=0;i<wallCount;i++){
         W = wallsCoord[i];
 
-        visableArea = player - W;
-        if(visableArea.x > 0) visableArea.x = 1;
-        else visableArea.x = -1;
-        if(visableArea.y > 0) visableArea.y = 1;
-        else visableArea.y = -1;
-        if(visableArea.z > 0) visableArea.z = 1;
-        else visableArea.z = -1;
-        visableArea = visableArea * wallArea;
-
-
-        // x
-        k = (W.x + visableArea.x - player.x)/Rd.x;
-
-        if(k>=0){
-            I = player + Rd*k;
-            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-            if(pow(I.y - W.y, 2) <= pow(visableArea.y,2) && pow(I.z - W.z, 2) <= pow(visableArea.y, 2)){
-                dst = length(I - player);
-                if(dst <= minDistance || minDistance<0){
-                    minDistance = dst;
-                }
+        int d;
+        for(int axis=0;axis<3;axis++){
+            if(player[axis%3] - W[axis%3] > 0){
+                d = 1;
             }
-        }
+            else d = -1;
+            k = (W[axis%3] + wallArea*d - player[axis%3])/Rd[axis%3];
 
-        // y
-        k = (W.y + visableArea.y - player.y)/Rd.y;
-
-        if(k>=0){
-            I = player + Rd*k;
-            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-            if(pow(I.x - W.x, 2) <= pow(visableArea.x,2) && pow(I.z - W.z, 2) <= pow(visableArea.z, 2)){
-                dst = length(I - player);
-                if(dst <= minDistance || minDistance<0){
-                    minDistance = dst;
-                }
-            }
-        }
-
-        // z
-        k = (W.z + visableArea.z - player.z)/Rd.z;
-
-        if(k>=0){
-            I = player + Rd*k;
-            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-            if(pow(I.x - W.x, 2) <= pow(visableArea.x,2) && pow(I.y - W.y, 2) <= pow(visableArea.y, 2)){
-                dst = length(I - player);
-                if(dst <= minDistance || minDistance<0){
-                    minDistance = dst;
+            if(k>=0){
+                I = player + Rd*k;
+                if(pow(I[(axis+1)%3] - W[(axis+1)%3], 2) <= pow(wallArea,2) 
+                    && pow(I[(axis+2)%3] - W[(axis+2)%3], 2) <= pow(wallArea, 2)){
+                    dst = length(I - player);
+                    if(dst <= minDistance || minDistance<0){
+                        minDistance = dst;
+                    }
                 }
             }
         }
