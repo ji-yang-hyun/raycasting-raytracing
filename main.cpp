@@ -30,8 +30,8 @@ pair<float, float> setPosition(float newpx,float newpy){
         yDistance = newpy - walls[i].y;
         
         if(pow(xDistance, 2) <= 0.25 && pow(yDistance, 2) <= 0.25){
-            x = px;
-            y = py;
+            x = player.x;
+            y = player.y;
         }
     }
     return make_pair(x,y);
@@ -43,61 +43,61 @@ void processInput(GLFWwindow *window)
         glfwSetWindowShouldClose(window, true);
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
-            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
+            player.x + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x), 
+            player.y + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x));
         
-        px = position.first;
-        py = position.second;
+        player.x = position.first;
+        player.y = position.second;
     }
     if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx), 
-            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx));
+            player.x - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x), 
+            player.y - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x));
         
-        px = position.first;
-        py = position.second;
+        player.x = position.first;
+        player.y = position.second;
     }
     if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx - PI/2), 
-            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx - PI/2));
+            player.x - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x - PI/2), 
+            player.y - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x - PI/2));
         
-        px = position.first;
-        py = position.second;
+        player.x = position.first;
+        player.y = position.second;
     }
     if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
         pair<float, float> position = setPosition(
-            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx - PI/2), 
-            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx - PI/2));
+            player.x + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*angle.x - PI/2), 
+            player.y + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*angle.x - PI/2));
         
-        px = position.first;
-        py = position.second;
+        player.x = position.first;
+        player.y = position.second;
     }
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-        pz += playerSpeed * ((float)glfwGetTime() - renderTime);
+        player.z += playerSpeed * ((float)glfwGetTime() - renderTime);
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-        pz -= playerSpeed * ((float)glfwGetTime() - renderTime);
+        player.z -= playerSpeed * ((float)glfwGetTime() - renderTime);
     }
 
     if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
-        pty += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        angle.y += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
     if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
-        pty -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-        if(pty - povVertical/2 < 0){
-            pty += 360;
+        angle.y -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        if(angle.y - povVertical/2 < 0){
+            angle.y += 360;
         }
     }
 
     if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
-        ptx -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-        if(ptx - povHorizontal/2 < 0){
-            ptx += 360;
+        angle.x -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        if(angle.x - povHorizontal/2 < 0){
+            angle.x += 360;
         }
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
-        ptx += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
+        angle.x += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
 }
 
@@ -108,13 +108,6 @@ float screenVertices[] = {
     -1.0f, -1.0f, 0.0f,
 };
 
-float pixelVertics[] = {
-    0.0f, -2.0f/(pixelY), 0.0f, // 위, 오른쪽
-    -2.0f/(pixelX), -2.0f/(pixelY), 0.0f, // 위, 왼쪽
-    0.0f, 0.0f, 0.0f, // 아래, 오른쪽
-    -2.0f/(pixelX), 0.0f, 0.0f // 아래, 왼쪽
-};
-
 unsigned int indices[] = {
     0,1,2,
     1,2,3
@@ -122,10 +115,9 @@ unsigned int indices[] = {
 
 
 void setUniform(Shader ourShader){
-    glm::vec3 D = glm::vec3(cos(PI/180*pty) * cos(PI/180*ptx), cos(PI/180*pty) * sin(PI/180*ptx),sin(PI/180*pty));
-    glm::vec3 Dnr = glm::vec3(sin(PI/180*ptx), -cos(PI/180*ptx), 0);// Srow를 위한 D의 평면직교벡터. 노트에 있는 Dㅗ
+    glm::vec3 D = glm::vec3(cos(PI/180*angle.y) * cos(PI/180*angle.x), cos(PI/180*angle.y) * sin(PI/180*angle.x),sin(PI/180*angle.y));
+    glm::vec3 Dnr = glm::vec3(sin(PI/180*angle.x), -cos(PI/180*angle.x), 0);// Srow를 위한 D의 평면직교벡터. 노트에 있는 Dㅗ
     glm::vec3 Dnc = glm::vec3(D.z*Dnr.y - D.y*Dnr.z, D.x*Dnr.z - D.z*Dnr.x, D.y*Dnr.x - D.x*Dnr.y);
-    glm::vec3 player = glm::vec3(px,py,pz);
     glm::vec3 Sr = scaleVector(Dnr, 1.0f/(tan(PI/180 * (1.0f/2)*povHorizontal)));
     glm::vec3 Sc = scaleVector(Dnc, 1.0f/(tan(PI/180 * (1.0f/2)*povVertical)));
 
@@ -177,18 +169,18 @@ int main(){
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    //window에서 픽셀을 그리기 위한 VAO
-    unsigned int EBOP;
-    glGenBuffers(1, &EBOP);
-    unsigned int VBOP;
-    glGenBuffers(1, &VBOP);
-    unsigned int VAOP;
-    glGenVertexArrays(1, &VAOP);  
-    glBindVertexArray(VAOP);
+    //스크린을 그리기 위한 버퍼 설정
+    unsigned int EBOS;
+    glGenBuffers(1, &EBOS);
+    unsigned int VBOS;
+    glGenBuffers(1, &VBOS);
+    unsigned int VAOS;
+    glGenVertexArrays(1, &VAOS);  
+    glBindVertexArray(VAOS);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBOP);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOS);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOP);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOS);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);  
     glBufferData(GL_ARRAY_BUFFER, sizeof(screenVertices), screenVertices, GL_STATIC_DRAW);
@@ -204,8 +196,6 @@ int main(){
 
         setUniform(ourShader);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        // printf("%f\n", (float)glfwGetTime() - renderTime);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

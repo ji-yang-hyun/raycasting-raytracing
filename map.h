@@ -7,7 +7,6 @@ using namespace std;
 
 #define mapSize 10
 // 그냥 정사각형 세상으로 하자.
-#define playerHeight 0.5
 
 int map[mapSize][mapSize] = {
     {1,1,1,1,1,1,1,1,1,1}, 

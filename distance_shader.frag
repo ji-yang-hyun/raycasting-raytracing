@@ -11,11 +11,6 @@ uniform vec3 Sr;
 uniform vec2 u_resolution;
 uniform float maxSight;
 
-
-//여기서 pixelCoord는 0,0이 좌측 하단이다. 범위는 0~1
-//(pixelCoord - 0.5) / 1.0
-//(pixelCoord - 0.5) / 1.0
-
 void main()
 {
     vec2 pixelCoord = gl_FragCoord.xy/u_resolution.xy;
@@ -28,64 +23,68 @@ void main()
     vec3 I;
     vec3 A;
     float minDistance = -1.0f;
-    int d = 1;
+    vec3 W;
+    vec3 visableArea;
 
     for(int i=0;i<wallCount;i++){
-        cnt = 10;
-        vec3 W = wallsCoord[i];
+        W = wallsCoord[i];
 
-        d = 1;
-        for(int ki=0;ki<2;ki++){
-            float area = wallArea * d;
+        visableArea = player - W;
+        if(visableArea.x > 0) visableArea.x = 1;
+        else visableArea.x = -1;
+        if(visableArea.y > 0) visableArea.y = 1;
+        else visableArea.y = -1;
+        if(visableArea.z > 0) visableArea.z = 1;
+        else visableArea.z = -1;
+        visableArea = visableArea * wallArea;
 
-            // x
-            k = (W.x + area - player.x)/Rd.x;
 
-            if(k>=0){
-                I = player + Rd*k;
-                A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-                if(pow(I.y - W.y, 2) <= pow(area,2) && pow(I.z - W.z, 2) <= pow(area, 2)){
-                    dst = length(I - player);
-                    if(dst <= minDistance || minDistance<0){
-                        minDistance = dst;
-                    }
+        // x
+        k = (W.x + visableArea.x - player.x)/Rd.x;
+
+        if(k>=0){
+            I = player + Rd*k;
+            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
+            if(pow(I.y - W.y, 2) <= pow(visableArea.y,2) && pow(I.z - W.z, 2) <= pow(visableArea.y, 2)){
+                dst = length(I - player);
+                if(dst <= minDistance || minDistance<0){
+                    minDistance = dst;
                 }
             }
+        }
 
-            // y
-            k = (W.y + area - player.y)/Rd.y;
+        // y
+        k = (W.y + visableArea.y - player.y)/Rd.y;
 
-            if(k>=0){
-                I = player + Rd*k;
-                A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-                if(pow(I.x - W.x, 2) <= pow(area,2) && pow(I.z - W.z, 2) <= pow(area, 2)){
-                    dst = length(I - player);
-                    if(dst <= minDistance || minDistance<0){
-                        minDistance = dst;
-                    }
+        if(k>=0){
+            I = player + Rd*k;
+            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
+            if(pow(I.x - W.x, 2) <= pow(visableArea.x,2) && pow(I.z - W.z, 2) <= pow(visableArea.z, 2)){
+                dst = length(I - player);
+                if(dst <= minDistance || minDistance<0){
+                    minDistance = dst;
                 }
             }
+        }
 
-            // z
-            k = (W.z + area - player.z)/Rd.z;
+        // z
+        k = (W.z + visableArea.z - player.z)/Rd.z;
 
-            if(k>=0){
-                I = player + Rd*k;
-                A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
-                if(pow(I.x - W.x, 2) <= pow(area,2) && pow(I.y - W.y, 2) <= pow(area, 2)){
-                    dst = length(I - player);
-                    if(dst <= minDistance || minDistance<0){
-                        minDistance = dst;
-                    }
+        if(k>=0){
+            I = player + Rd*k;
+            A = I - W; // I와 W의 x좌푯값은 area만큼 차이가 난다.
+            if(pow(I.x - W.x, 2) <= pow(visableArea.x,2) && pow(I.y - W.y, 2) <= pow(visableArea.y, 2)){
+                dst = length(I - player);
+                if(dst <= minDistance || minDistance<0){
+                    minDistance = dst;
                 }
             }
-            d = -1;
         }
     }
 
     float color;
-    color = min(max(minDistance/maxSight, 0.0f), 1.0f);
-    if(color == 0.0f){
+    color = min(minDistance/maxSight, 1.0f);
+    if(minDistance < 0){
         color = 1.0f;
     }
 
