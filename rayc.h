@@ -27,8 +27,8 @@ using namespace std;
 #define equal 0.0001
 
 //맵 기준 위치
-float px = 8;
-float py = 8;
+float px = 2;
+float py = 2;
 float pz = playerHeight;
 //화면 기준
 float ptx = 90; // player theta // 가로
@@ -174,49 +174,5 @@ pair<float, glm::vec3 > wallDistance(glm::vec3 Rd){
         return make_pair(-1, glm::vec3());
     }
     return distanceV[minI].second.first;
-}
-
-
-pair<float, glm::vec2 > getPixelFromVertices(glm::vec3 V){
-    glm::vec3 P = glm::vec3(px,py,pz);
-    glm::vec3 R = V-P;
-
-    glm::vec3 D = glm::vec3(cos(PI/180*pty) * cos(PI/180*ptx), cos(PI/180*pty) * sin(PI/180*ptx),sin(PI/180*pty));
-    glm::vec3 Dnr = glm::vec3(sin(PI/180*ptx), -cos(PI/180*ptx), 0);// Srow를 위한 D의 평면직교벡터. 노트에 있는 Dㅗ
-    glm::vec3 Dnc = glm::vec3(D.z*Dnr.y - D.y*Dnr.z, D.x*Dnr.z - D.z*Dnr.x, D.y*Dnr.x - D.x*Dnr.y);
-    // Scol를 위한 D와 Dㅗ의 외적벡터. 노트에 있는 n
-
-    glm::vec3 Sr = scaleVector(Dnr, 1.0f/(tan(PI/180 * (1.0f/2)*povHorizontal)));
-    glm::vec3 Sc = scaleVector(Dnc, 1.0f/(tan(PI/180 * (1.0f/2)*povVertical)));
-
-
-    /*
-    R = k * (D + c*Sc + r*Sr)
-
-    근데 이러면 M이 잘못된 것 같은데?? 이따가 계산 다시 해보자
-    */
-
-    glm::mat3 M(
-        D.x, Sc.x, Sr.x,
-        D.y, Sc.y, Sr.y,
-        D.z, Sc.z, Sr.z
-    );
-
-    glm::mat3 Minverse = glm::inverse(M);
-
-    glm::vec3 result = Minverse * R;
-
-    float c = result.y / result.x;
-    float r = result.z / result.x;
-    float distance = sqrt(pow(R.x,2) + pow(R.y,2) + pow(R.z,2));
-
-    if(c  + pixelX/2 > pixelX || r + pixelY/2 > pixelY || r + pixelY/2 < 0 || c  + pixelX/2 < 0)
-    {
-        // 화면 안에 안 담길 떄
-        // 이제 여기에서 화면 안에 그 픽셀들이 보일 수 있게 옮겨줘야 한다.
-        return make_pair(-1, glm::vec2(-1,-1));
-    }
-
-    return make_pair(distance, glm::vec2(c + pixelX/2,r + pixelY/2));
 }
 #endif
