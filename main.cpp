@@ -57,6 +57,28 @@ void processInput(GLFWwindow *window)
         px = position.first;
         py = position.second;
     }
+    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+        pair<float, float> position = setPosition(
+            px - playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx - PI/2), 
+            py - playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx - PI/2));
+        
+        px = position.first;
+        py = position.second;
+    }
+    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+        pair<float, float> position = setPosition(
+            px + playerSpeed * ((float)glfwGetTime() - renderTime) * cos(PI/180*ptx - PI/2), 
+            py + playerSpeed * ((float)glfwGetTime() - renderTime) * sin(PI/180*ptx - PI/2));
+        
+        px = position.first;
+        py = position.second;
+    }
+    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+        pz += playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+        pz -= playerSpeed * ((float)glfwGetTime() - renderTime);
+    }
 
     if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
         pty += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
@@ -76,14 +98,6 @@ void processInput(GLFWwindow *window)
     }
     if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
         ptx += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-    }
-
-
-    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-        layerToSee += playerThetaSpeed * ((float)glfwGetTime() - renderTime);
-    }
-    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-        layerToSee -= playerThetaSpeed * ((float)glfwGetTime() - renderTime);
     }
 }
 
@@ -191,7 +205,7 @@ int main(){
         setUniform(ourShader);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        printf("%f\n", (float)glfwGetTime() - renderTime);
+        // printf("%f\n", (float)glfwGetTime() - renderTime);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

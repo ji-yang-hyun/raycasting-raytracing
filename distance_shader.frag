@@ -20,7 +20,7 @@ void main()
 {
     vec2 pixelCoord = gl_FragCoord.xy/u_resolution.xy;
 
-    vec3 Rd = D + Sr * (((pixelCoord.x - 0.5) / 1.0)/1.0f) + Sc * ((pixelCoord.y - 0.5) / 1.0);
+    vec3 Rd = D + Sr * ((pixelCoord.x - 0.5) / 1.0f) + Sc * ((pixelCoord.y - 0.5) / 1.0f);
     int cnt = 0;
     
     float k;

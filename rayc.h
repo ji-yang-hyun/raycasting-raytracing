@@ -12,8 +12,8 @@
 
 using namespace std;
 
-#define povHorizontal 60
-#define povVertical 60
+#define povHorizontal 120
+#define povVertical 120
 #define pixelX 300
 #define pixelY 300
 #define PI 3.1415926
