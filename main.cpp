@@ -38,6 +38,8 @@ void processInput(GLFWwindow *window)
 
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
         move = scaleVector(Dxy, moveDst);
 
@@ -124,7 +126,6 @@ void setUniform(Shader ourShader){
     ourShader.setVec3("Sr", Sr);
     ourShader.setVec3("Sc", Sc);
 }
-
 int main(){
 
     wallCoordinate();
