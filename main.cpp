@@ -11,14 +11,17 @@
 #include <unistd.h> // <windows.h> 대체
 #include"map.h"
 #include"rayc.h"
+#include"bad_apple_data.h"
 
 float renderTime;
-
+Shader ourShader;
+bool isChange = true;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
 {
     float min = (width < height) ? width : height;
     glViewport(0, 0, min, min);
+    ourShader.setVec2("u_resolution", glm::vec2(min, min));
 }
 
 bool isColide(glm::vec3 move){
@@ -113,7 +116,7 @@ unsigned int indices[] = {
 };
 
 
-void setUniform(Shader ourShader){
+void setUniform(){
     glm::vec3 D = glm::vec3(cos(PI/180*angle.y) * cos(PI/180*angle.x), cos(PI/180*angle.y) * sin(PI/180*angle.x),sin(PI/180*angle.y));
     glm::vec3 Dnr = glm::vec3(sin(PI/180*angle.x), -cos(PI/180*angle.x), 0);// Srow를 위한 D의 평면직교벡터. 노트에 있는 Dㅗ
     glm::vec3 Dnc = glm::vec3(D.z*Dnr.y - D.y*Dnr.z, D.x*Dnr.z - D.z*Dnr.x, D.y*Dnr.x - D.x*Dnr.y);
@@ -126,10 +129,34 @@ void setUniform(Shader ourShader){
     ourShader.setVec3("Sr", Sr);
     ourShader.setVec3("Sc", Sc);
 }
-int main(){
 
+void changeScreen(int frame){
+    for(int i=0;i<colPixelCount;i++){
+        for(int j=0;j<rowPixelCount;j++){
+            map[screenlayer][i][j] = badApplePixelData[frame][i][j];
+        }
+    }
+    walls.clear();
     wallCoordinate();
+    glUniform3fv(glGetUniformLocation(ourShader.ID, "wallsCoord"), walls.size(), glm::value_ptr(walls[0])); 
+    ourShader.setInt("wallCount", walls.size());
+    printf("done\n");
+}
 
+void animation(float time, int* currentFrameAdd){
+    int frame = (int)(time*fps);
+    // printf("%d\n", frame);
+    if(frame != *currentFrameAdd){
+        if(frame >= frameCount){
+            frame = 0;
+        }
+        changeScreen(frame);
+        // printf("%d\n", *currentFrameAdd);
+    }
+    *currentFrameAdd = frame;
+}
+
+int main(){
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -153,7 +180,6 @@ int main(){
 
     glViewport(0,0,600,600);
     glEnable(GL_DEPTH_TEST);
-    Shader ourShader;
     ourShader.setShader("shader.vs", "distance_shader.frag");
 
     // wall Data uniform 보내주기
@@ -183,19 +209,24 @@ int main(){
     glEnableVertexAttribArray(0);  
     glBufferData(GL_ARRAY_BUFFER, sizeof(screenVertices), screenVertices, GL_STATIC_DRAW);
 
+    int currentFrame = -1;
+
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
-
+        animation((float)glfwGetTime(), &currentFrame);
+        printf("%f\n", (float)glfwGetTime() - renderTime);
         renderTime = (float)glfwGetTime();
+        
         glClearColor(1.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        setUniform(ourShader);
+        setUniform();
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
+        
         glfwPollEvents();
     }
 

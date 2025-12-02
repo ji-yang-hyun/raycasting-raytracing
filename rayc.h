@@ -17,10 +17,10 @@ using namespace std;
 #define PI 3.1415926
 #define playerSpeed 2
 #define playerThetaSpeed 45
-#define maxSightRange 15
+#define maxSightRange 50
 
 //맵 기준 위치
-glm::vec3 player = glm::vec3(2,2,2); //x,y,z
+glm::vec3 player = glm::vec3(2,2,3); //x,y,z
 //화면 기준
 glm::vec2 angle = glm::vec2(90, 0); // horizental, vertical 스크린의 x,y방향
 
